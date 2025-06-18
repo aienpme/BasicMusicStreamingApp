@@ -83,6 +83,9 @@ class MainActivity : AppCompatActivity(),
 
         Log.d("MainActivity", "=== ONCREATE STARTED ===")
         
+        // Reset mini player updates flag in case it was stuck from previous state
+        preventMiniPlayerUpdates = false
+        
         // Initialize components
         initializeComponents()
         
@@ -122,6 +125,8 @@ class MainActivity : AppCompatActivity(),
         binding.bottomNavView.setOnItemSelectedListener { item ->
             // Skip animation if we're in a detail mode (album/playlist)
             if (fragmentNavigationManager.currentDisplayMode != FragmentNavigationManager.DisplayMode.NORMAL) {
+                // Reset mini player updates when navigating back to normal mode
+                preventMiniPlayerUpdates = false
                 when (item.itemId) {
                     R.id.navigation_library -> {
                         fragmentNavigationManager.loadFragment(libraryFragment, item.itemId)
@@ -176,9 +181,39 @@ class MainActivity : AppCompatActivity(),
         connectionManager.pauseHealthCheck()
     }
     
+    override fun onStart() {
+        super.onStart()
+        Log.d("MainActivity", "=== ONSTART CALLED ===")
+        
+        // Immediately check if service is connected and music is playing
+        musicServiceManager.getMusicService()?.let { service ->
+            Log.d("MainActivity", "Service connected in onStart")
+            if (service.getCurrentSong() != null) {
+                Log.d("MainActivity", "Music is playing, forcing immediate mini player update")
+                preventMiniPlayerUpdates = false
+                miniPlayerController.update()
+            }
+        }
+    }
+    
     override fun onResume() {
         super.onResume()
         connectionManager.resumeHealthCheck()
+        
+        // Force immediate mini player update when resuming
+        preventMiniPlayerUpdates = false
+        
+        // Check if service is already connected and update immediately
+        musicServiceManager.getMusicService()?.let { service ->
+            Log.d("MainActivity", "Service already connected in onResume, updating mini player immediately")
+            service.getCurrentSong()?.let { song ->
+                Log.d("MainActivity", "Current song found: ${song.title}")
+                miniPlayerController.update()
+            }
+        }
+        
+        // Also call updateMiniPlayer for any other state updates
+        updateMiniPlayer()
     }
 
     private fun loadConnectionDetails() {
@@ -342,9 +377,14 @@ class MainActivity : AppCompatActivity(),
     // MusicServiceManager.MusicServiceCallback
     override fun onServiceConnected(service: MusicService) {
         musicServiceManager.addListener(this)
+        
+        // Reset flag immediately when service connects
+        preventMiniPlayerUpdates = false
+        
+        // Force immediate update
         updateMiniPlayer()
         
-        // Explicitly check for existing playback in both online and offline modes
+        // Explicitly check for existing playback
         service.getCurrentSong()?.let { song ->
             Log.d("MainActivity", "Found current song when service connected: ${song.title}")
             // Force immediate mini player update
@@ -444,6 +484,8 @@ class MainActivity : AppCompatActivity(),
     override fun onSongChanged(song: Song?) {
         Log.d("MainActivity", "=== SONG CHANGED ===")
         Log.d("MainActivity", "New song: ${song?.title} by ${song?.artist}")
+        // Reset the flag when song changes to ensure mini player updates
+        preventMiniPlayerUpdates = false
         updateMiniPlayer()
     }
     
