@@ -5,7 +5,6 @@ import (
 	
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 
 	"bma-go/internal/models"
 	"bma-go/internal/server"
@@ -13,17 +12,25 @@ import (
 
 // MainUI represents the main application UI, equivalent to ContentView in Swift
 type MainUI struct {
-	serverManager *server.ServerManager
-	musicLibrary  *models.MusicLibrary
-	serverStatus  *ServerStatusBar
-	songList      *SongListView
-	libraryStatus *LibraryStatusBar
-	content       *fyne.Container
+	app               fyne.App
+	window            fyne.Window
+	config            *models.Config
+	serverManager     *server.ServerManager
+	musicLibrary      *models.MusicLibrary
+	serverStatus      *ServerStatusBar
+	songList          *SongListView
+	libraryStatus     *LibraryStatusBar
+	content           *fyne.Container
+	animationCoord    *AnimationCoordinator  // New animation coordinator
 }
 
 // NewMainUI creates a new main UI instance
-func NewMainUI() *MainUI {
-	ui := &MainUI{}
+func NewMainUI(app fyne.App, window fyne.Window, config *models.Config) *MainUI {
+	ui := &MainUI{
+		app:    app,
+		window: window,
+		config: config,
+	}
 	ui.initialize()
 	return ui
 }
@@ -44,6 +51,19 @@ func (ui *MainUI) initialize() {
 	ui.songList = NewSongListView(ui.musicLibrary)
 	ui.libraryStatus = NewLibraryStatusBar(ui.musicLibrary, ui.serverManager)
 
+	// Set the parent window for dialogs
+	ui.songList.SetParentWindow(ui.window)
+
+	// Create animation coordinator
+	qrSection := ui.serverStatus.GetQRSection()
+	ui.animationCoord = NewAnimationCoordinator(qrSection, ui.songList, ui.window)
+	
+	// Connect animation coordinator to server status bar
+	ui.serverStatus.SetAnimationCoordinator(ui.animationCoord)
+	
+	// Note: Don't call ForceState here - let components initialize naturally
+	// The QR section starts hidden by default, albums start visible
+
 	// Create the main layout matching ContentView.swift structure:
 	// VStack(spacing: 0) {
 	//   ServerStatusBar().padding().background(Color.gray.opacity(0.1))
@@ -51,41 +71,31 @@ func (ui *MainUI) initialize() {
 	//   LibraryStatusBar().padding().background(Color.gray.opacity(0.1))
 	// }
 
-	ui.content = container.NewVBox(
-		// Server status bar - more compact
+	// Use BorderContainer to properly position top/bottom bars, but constrain center
+	ui.content = container.NewBorder(
+		// Top: Server status bar (stays at top)
 		ui.serverStatus.GetContent(),
-		
-		widget.NewSeparator(), // Visual separation
-		
-		// Main content area - song list (expandable)
-		ui.songList.GetContent(),
-		
-		widget.NewSeparator(), // Visual separation
-		
-		// Library status bar - more compact  
+		// Bottom: Library status bar (stays at window bottom)
 		ui.libraryStatus.GetContent(),
+		// Left & Right: nil
+		nil, nil,
+		// Center: Song list (size-constrained in SongListView)
+		ui.songList.GetContent(),
 	)
 }
 
 // LoadMusicLibrary loads the music library from the configured folder
 func (ui *MainUI) LoadMusicLibrary() {
-	// Load config to get music folder path
-	config, err := models.LoadConfig()
-	if err != nil {
-		log.Printf("❌ Failed to load config for music library: %v", err)
-		return
-	}
-	
-	// Check if music folder is configured
-	if config.MusicFolder == "" {
+	// Check if music folder is configured in the passed config
+	if ui.config.MusicFolder == "" {
 		log.Println("⚠️ No music folder configured")
 		return
 	}
 	
-	log.Printf("🎵 Loading music library from: %s", config.MusicFolder)
+	log.Printf("🎵 Loading music library from: %s", ui.config.MusicFolder)
 	
 	// Use SelectFolder which sets the path and scans the library
-	go ui.musicLibrary.SelectFolder(config.MusicFolder)
+	go ui.musicLibrary.SelectFolder(ui.config.MusicFolder)
 	
 	// Automatically start the server after music library loading
 	go ui.AutoStartServer()
@@ -114,15 +124,20 @@ func (ui *MainUI) GetContent() fyne.CanvasObject {
 	return ui.content
 }
 
-// SetMainWindow sets the main window reference for dialog components
-func (ui *MainUI) SetMainWindow(window fyne.Window) {
-	ui.songList.SetParentWindow(window)
-}
-
 // Cleanup handles application termination cleanup
 func (ui *MainUI) Cleanup() {
 	// Ensure server is stopped before app terminates (like SwiftUI onReceive)
 	if ui.serverManager != nil {
 		ui.serverManager.Cleanup()
 	}
+}
+
+// GetServerStatus returns the server status bar for external access
+func (ui *MainUI) GetServerStatus() *ServerStatusBar {
+	return ui.serverStatus
+}
+
+// GetAnimationCoordinator returns the animation coordinator for external access
+func (ui *MainUI) GetAnimationCoordinator() *AnimationCoordinator {
+	return ui.animationCoord
 } 

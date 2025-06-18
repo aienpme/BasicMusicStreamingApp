@@ -190,4 +190,27 @@ object ApiClient {
     val api: BmaApi by lazy {
         getClient().create(BmaApi::class.java)
     }
+    
+    // Additional methods for offline mode integration
+    
+    /**
+     * Quick check if server is reachable (without authentication)
+     */
+    suspend fun isServerReachable(): Boolean {
+        return try {
+            if (baseUrl.isEmpty()) return false
+            api.checkHealth()
+            true
+        } catch (e: Exception) {
+            android.util.Log.d("ApiClient", "Server unreachable: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * Check if we have valid credentials and server connection
+     */
+    suspend fun isFullyConnected(context: android.content.Context): Boolean {
+        return checkConnection(context) == ConnectionStatus.CONNECTED
+    }
 } 

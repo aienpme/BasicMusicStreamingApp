@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"bma-go/internal/models"
+	customTheme "bma-go/internal/ui/theme"
 )
 
 // WelcomeStep - Step 1: Welcome screen
@@ -29,9 +30,10 @@ func NewWelcomeStep() *WelcomeStep {
 
 func (s *WelcomeStep) GetContent() fyne.CanvasObject {
 	if s.content == nil {
-		title := widget.NewLabelWithStyle("Hello! 👋", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+		// Title without emoji
+		title := widget.NewLabelWithStyle("Welcome", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 		
-		subtitle := widget.NewLabelWithStyle("Welcome to BMA - Basic Music App", fyne.TextAlignCenter, fyne.TextStyle{})
+		subtitle := widget.NewLabelWithStyle("BMA - Basic Music App", fyne.TextAlignCenter, fyne.TextStyle{})
 		
 		description := widget.NewLabelWithStyle(
 			"Let's get you set up to stream your music library.\n\nThis quick setup will help you:",
@@ -39,21 +41,27 @@ func (s *WelcomeStep) GetContent() fyne.CanvasObject {
 			fyne.TextStyle{},
 		)
 		
+		// Feature list without icons - cleaner look
 		features := widget.NewLabelWithStyle(
 			"• Install Tailscale for remote access\n• Download the Android app\n• Select your music folder\n• Automatic server startup & pairing",
 			fyne.TextAlignLeading,
 			fyne.TextStyle{},
 		)
 		
-		s.content = container.NewVBox(
-			widget.NewCard("", "", container.NewVBox(
+		// Modern card with all content
+		welcomeCard := customTheme.NewModernCard(
+			"",
+			"",
+			container.NewVBox(
 				title,
 				subtitle,
 				widget.NewSeparator(),
 				description,
 				features,
-			)),
+			),
 		)
+		
+		s.content = container.NewPadded(welcomeCard)
 	}
 	return s.content
 }
@@ -68,9 +76,9 @@ func (s *WelcomeStep) GetNextAction() func() { return nil }
 type TailscaleStep struct {
 	content        fyne.CanvasObject
 	isInstalled    bool
-	statusLabel    *widget.Label
-	downloadButton *widget.Button
-	recheckButton  *widget.Button
+	statusBadge    *customTheme.StatusBadge
+	downloadButton *customTheme.ModernButton
+	recheckButton  *customTheme.ModernButton
 	onStateChange  func() // Callback when installation state changes
 }
 
@@ -88,26 +96,40 @@ func (s *TailscaleStep) GetContent() fyne.CanvasObject {
 			fyne.TextStyle{},
 		)
 		
-		s.statusLabel = widget.NewLabel("Checking Tailscale installation...")
+		// Status badge
+		s.statusBadge = customTheme.NewStatusBadge("Checking installation...", customTheme.StatusInfo)
+		statusContainer := container.NewCenter(s.statusBadge)
 		
-		s.downloadButton = widget.NewButton("Open Download Page", func() {
+		// Clean buttons without icons
+		s.downloadButton = customTheme.NewModernButton("Open Download Page", func() {
 			// Open browser to Tailscale download page
 			exec.Command("open", "https://tailscale.com/download").Start()
 		})
+		s.downloadButton.SetImportance(widget.HighImportance)
 		
-		s.recheckButton = widget.NewButton("I've Downloaded It", func() {
+		s.recheckButton = customTheme.NewModernButton("Check Again", func() {
 			s.checkTailscaleInstallation()
 		})
 		
-		s.content = container.NewVBox(
-			widget.NewCard("", "", container.NewVBox(
+		buttonContainer := container.NewHBox(
+			s.downloadButton,
+			s.recheckButton,
+		)
+		
+		// Modern card
+		tailscaleCard := customTheme.NewModernCard(
+			"",
+			"",
+			container.NewVBox(
 				title,
 				description,
 				widget.NewSeparator(),
-				s.statusLabel,
-				container.NewHBox(s.downloadButton, s.recheckButton),
-			)),
+				statusContainer,
+				buttonContainer,
+			),
 		)
+		
+		s.content = container.NewPadded(tailscaleCard)
 	}
 	return s.content
 }
@@ -118,12 +140,16 @@ func (s *TailscaleStep) checkTailscaleInstallation() {
 	
 	if s.isInstalled {
 		// Tailscale found
-		s.statusLabel.SetText("✅ Tailscale is installed!")
+		s.statusBadge.Status = "Installed"
+		s.statusBadge.BadgeColor = customTheme.StatusSuccess
+		s.statusBadge.Refresh()
 		s.downloadButton.Hide()
 		s.recheckButton.Hide()
 	} else {
 		// Tailscale not found
-		s.statusLabel.SetText("❌ Tailscale not found. Please download and install it.")
+		s.statusBadge.Status = "Not Found"
+		s.statusBadge.BadgeColor = customTheme.TextMuted
+		s.statusBadge.Refresh()
 		s.downloadButton.Show()
 		s.recheckButton.Show()
 	}
@@ -244,22 +270,31 @@ func (s *AndroidAppStep) GetContent() fyne.CanvasObject {
 		// Generate QR code for GitHub repository
 		qrCode := s.createGitHubQRCode()
 		
+		// QR code in a card
+		qrCard := customTheme.NewModernCard("", "", container.NewCenter(qrCode))
+		
+		// Clean instructions without icons
 		instructions := widget.NewLabelWithStyle(
 			"1. Open your camera app\n2. Point it at the QR code\n3. Tap the notification to open GitHub\n4. Download the APK file",
 			fyne.TextAlignLeading,
 			fyne.TextStyle{},
 		)
 		
-		s.content = container.NewVBox(
-			widget.NewCard("", "", container.NewVBox(
+		// Main card
+		androidCard := customTheme.NewModernCard(
+			"",
+			"",
+			container.NewVBox(
 				title,
 				description,
 				widget.NewSeparator(),
-				container.NewCenter(qrCode),
+				qrCard,
 				widget.NewSeparator(),
 				instructions,
-			)),
+			),
 		)
+		
+		s.content = container.NewPadded(androidCard)
 	}
 	return s.content
 }
@@ -369,12 +404,13 @@ func (s *PairingStep) GetNextAction() func() { return nil }
 
 // MusicLibraryStep - Step 5: Music folder selection
 type MusicLibraryStep struct {
-	content      fyne.CanvasObject
-	config       *models.Config
-	folderPath   string
-	pathLabel    *widget.Label
-	selectButton *widget.Button
-	window       fyne.Window
+	content       fyne.CanvasObject
+	config        *models.Config
+	folderPath    string
+	pathCard      *customTheme.ModernCard
+	pathLabel     *widget.Label
+	selectButton  *customTheme.ModernButton
+	window        fyne.Window
 	onStateChange func() // Callback when folder selection changes
 }
 
@@ -394,21 +430,30 @@ func (s *MusicLibraryStep) GetContent() fyne.CanvasObject {
 			fyne.TextStyle{},
 		)
 		
-		s.pathLabel = widget.NewLabel("No folder selected")
+		// Path display card - keep reference to label for updates
+		s.pathLabel = widget.NewLabelWithStyle("No folder selected", fyne.TextAlignCenter, fyne.TextStyle{Italic: true})
+		s.pathCard = customTheme.NewModernCard("Selected Folder", "", s.pathLabel)
 		
-		s.selectButton = widget.NewButton("Select Music Folder", func() {
+		// Clean select button
+		s.selectButton = customTheme.NewModernButton("Select Music Folder", func() {
 			s.showFolderDialog()
 		})
+		s.selectButton.SetImportance(widget.HighImportance)
 		
-		s.content = container.NewVBox(
-			widget.NewCard("", "", container.NewVBox(
+		// Main card
+		libraryCard := customTheme.NewModernCard(
+			"",
+			"",
+			container.NewVBox(
 				title,
 				description,
 				widget.NewSeparator(),
-				s.pathLabel,
-				s.selectButton,
-			)),
+				s.pathCard,
+				container.NewCenter(s.selectButton),
+			),
 		)
+		
+		s.content = container.NewPadded(libraryCard)
 	}
 	return s.content
 }
@@ -424,7 +469,15 @@ func (s *MusicLibraryStep) showFolderDialog() {
 		}
 		
 		s.folderPath = folder.Path()
-		s.pathLabel.SetText("Selected: " + s.folderPath)
+		
+		// Update the existing label instead of creating a new one
+		s.pathLabel.SetText(s.folderPath)
+		s.pathLabel.TextStyle = fyne.TextStyle{} // Remove italic style
+		s.pathLabel.Refresh()
+		
+		// Update the card title
+		s.pathCard.Title = "Music Folder Selected"
+		s.pathCard.Refresh()
 		
 		// Save to config
 		s.config.SetMusicFolder(s.folderPath)
@@ -446,7 +499,21 @@ func (s *MusicLibraryStep) SetStateChangeCallback(callback func()) {
 }
 
 func (s *MusicLibraryStep) GetTitle() string { return "Music Library" }
-func (s *MusicLibraryStep) OnEnter()         {}
+func (s *MusicLibraryStep) OnEnter() {
+	// Check if music folder is already configured
+	if s.config != nil && s.config.MusicFolder != "" {
+		s.folderPath = s.config.MusicFolder
+		if s.pathLabel != nil {
+			s.pathLabel.SetText(s.folderPath)
+			s.pathLabel.TextStyle = fyne.TextStyle{} // Remove italic style
+			s.pathLabel.Refresh()
+		}
+		if s.pathCard != nil {
+			s.pathCard.Title = "Music Folder Selected"
+			s.pathCard.Refresh()
+		}
+	}
+}
 func (s *MusicLibraryStep) OnExit()          {}
 func (s *MusicLibraryStep) CanContinue() bool { return s.folderPath != "" }
 func (s *MusicLibraryStep) GetNextAction() func() { return nil }
@@ -462,28 +529,34 @@ func NewSetupCompleteStep() *SetupCompleteStep {
 
 func (s *SetupCompleteStep) GetContent() fyne.CanvasObject {
 	if s.content == nil {
-		title := widget.NewLabelWithStyle("Setup Complete! 🎉", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+		title := widget.NewLabelWithStyle("Setup Complete", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 		
 		description := widget.NewLabelWithStyle(
-			"Your music server is ready to go!\n\nAfter clicking 'Start Streaming', the server will start automatically\nand a QR code will appear for device pairing.",
+			"Your music server is ready to go.\n\nAfter clicking 'Start Streaming', the server will start automatically\nand a QR code will appear for device pairing.",
 			fyne.TextAlignCenter,
 			fyne.TextStyle{},
 		)
 		
+		// Clean list without icons
 		features := widget.NewLabelWithStyle(
-			"✅ Tailscale installed for remote access\n✅ Android app ready for download\n✅ Music library selected\n✅ Automatic server startup & QR code generation",
+			"• Tailscale installed for remote access\n• Android app ready for download\n• Music library selected\n• Automatic server startup & QR code generation",
 			fyne.TextAlignLeading,
 			fyne.TextStyle{},
 		)
 		
-		s.content = container.NewVBox(
-			widget.NewCard("", "", container.NewVBox(
+		// Success card with gradient effect
+		successCard := customTheme.NewModernCard(
+			"",
+			"",
+			container.NewVBox(
 				title,
 				description,
 				widget.NewSeparator(),
 				features,
-			)),
+			),
 		)
+		
+		s.content = container.NewPadded(successCard)
 	}
 	return s.content
 }

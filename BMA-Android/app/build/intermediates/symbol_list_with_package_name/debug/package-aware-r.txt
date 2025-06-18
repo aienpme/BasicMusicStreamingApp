@@ -3497,6 +3497,7 @@ id decelerate
 id decelerateAndComplete
 id decor_content_parent
 id default_activity_button
+id delete_all_button
 id deltaRelative
 id dependency_ordering
 id design_bottom_sheet
@@ -3515,10 +3516,15 @@ id disableScroll
 id disconnect_button
 id disjoint
 id doneButton
-id download_coming_soon
+id download_all_button
 id download_description
+id download_progress
 id download_quality_button
+id download_selected_button
 id download_settings_title
+id download_size_text
+id download_status_icon
+id download_status_text
 id dragAnticlockwise
 id dragClockwise
 id dragDown
@@ -3540,6 +3546,8 @@ id edit_query
 id elastic
 id embed
 id emptyStateLayout
+id empty_state
+id empty_state_text
 id end
 id endToStart
 id end_padder
@@ -3665,7 +3673,11 @@ id invisible
 id inward
 id is_pooling_container_tag
 id italic
+id item_details
+id item_subtitle
+id item_title
 id item_touch_helper_previous_elevation
+id items_recycler_view
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3723,6 +3735,8 @@ id miniPlayerPrevious
 id miniPlayerProgress
 id miniPlayerTitle
 id mini_player
+id minutes_listened_label
+id minutes_listened_value
 id month_grid
 id month_navigation_bar
 id month_navigation_fragment_toggle
@@ -3880,6 +3894,7 @@ id search_bar
 id search_button
 id search_close_btn
 id search_edit_frame
+id search_edit_text
 id search_go_btn
 id search_mag_icon
 id search_plate
@@ -3889,8 +3904,10 @@ id search_view
 id search_voice_btn
 id sectionTitle
 id seekBar
+id select_all_checkbox
 id select_dialog_listview
 id selected
+id selection_checkbox
 id selection_type
 id settings_title
 id setup_container
@@ -3944,13 +3961,18 @@ id status_description
 id status_icon
 id status_title
 id stop
-id storage_location_button
+id streaming_stats_description
+id streaming_stats_title
 id stretch
 id submenuarrow
 id submit_area
 id supportScrollUp
 id surface_view
 id tabMode
+id tab_icon
+id tab_layout
+id tab_subtitle
+id tab_title
 id tag_accessibility_actions
 id tag_accessibility_clickable_spans
 id tag_accessibility_heading
@@ -4014,6 +4036,7 @@ id useLogo
 id vertical_only
 id video_decoder_gl_surface_view
 id view_offset_helper
+id view_pager
 id view_transition
 id view_tree_lifecycle_owner
 id view_tree_on_back_pressed_dispatcher_owner
@@ -4153,6 +4176,7 @@ layout abc_search_view
 layout abc_select_dialog_material
 layout abc_tooltip
 layout activity_album_detail
+layout activity_download_selection
 layout activity_main
 layout activity_player
 layout activity_qr_scanner
@@ -4189,6 +4213,7 @@ layout exo_styled_sub_settings_list_item
 layout exo_track_selection_dialog
 layout fragment_album_detail
 layout fragment_disconnection
+layout fragment_download_tab
 layout fragment_library
 layout fragment_loading
 layout fragment_playlist_detail
@@ -4199,6 +4224,7 @@ layout fragment_tailscale_check
 layout fragment_welcome
 layout item_album_header
 layout item_create_playlist
+layout item_download_selection
 layout item_playlist
 layout item_playlist_selectable
 layout item_queue_current_song

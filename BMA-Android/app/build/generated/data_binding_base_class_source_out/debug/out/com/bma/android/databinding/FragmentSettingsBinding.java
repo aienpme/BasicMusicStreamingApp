@@ -45,9 +45,6 @@ public final class FragmentSettingsBinding implements ViewBinding {
   public final MaterialButton disconnectButton;
 
   @NonNull
-  public final TextView downloadComingSoon;
-
-  @NonNull
   public final TextView downloadDescription;
 
   @NonNull
@@ -55,6 +52,12 @@ public final class FragmentSettingsBinding implements ViewBinding {
 
   @NonNull
   public final TextView downloadSettingsTitle;
+
+  @NonNull
+  public final TextView minutesListenedLabel;
+
+  @NonNull
+  public final TextView minutesListenedValue;
 
   @NonNull
   public final MaterialButton reconnectButton;
@@ -66,17 +69,21 @@ public final class FragmentSettingsBinding implements ViewBinding {
   public final TextView settingsTitle;
 
   @NonNull
-  public final MaterialButton storageLocationButton;
+  public final TextView streamingStatsDescription;
+
+  @NonNull
+  public final TextView streamingStatsTitle;
 
   private FragmentSettingsBinding(@NonNull ScrollView rootView,
       @NonNull MaterialButton backupButton, @NonNull TextView backupDescription,
       @NonNull TextView backupSettingsTitle, @NonNull MaterialButton clearCacheButton,
       @NonNull TextView connectionSettingsTitle, @NonNull TextView connectionStatusLabel,
       @NonNull TextView connectionStatusText, @NonNull MaterialButton disconnectButton,
-      @NonNull TextView downloadComingSoon, @NonNull TextView downloadDescription,
-      @NonNull MaterialButton downloadQualityButton, @NonNull TextView downloadSettingsTitle,
-      @NonNull MaterialButton reconnectButton, @NonNull MaterialButton restoreButton,
-      @NonNull TextView settingsTitle, @NonNull MaterialButton storageLocationButton) {
+      @NonNull TextView downloadDescription, @NonNull MaterialButton downloadQualityButton,
+      @NonNull TextView downloadSettingsTitle, @NonNull TextView minutesListenedLabel,
+      @NonNull TextView minutesListenedValue, @NonNull MaterialButton reconnectButton,
+      @NonNull MaterialButton restoreButton, @NonNull TextView settingsTitle,
+      @NonNull TextView streamingStatsDescription, @NonNull TextView streamingStatsTitle) {
     this.rootView = rootView;
     this.backupButton = backupButton;
     this.backupDescription = backupDescription;
@@ -86,14 +93,16 @@ public final class FragmentSettingsBinding implements ViewBinding {
     this.connectionStatusLabel = connectionStatusLabel;
     this.connectionStatusText = connectionStatusText;
     this.disconnectButton = disconnectButton;
-    this.downloadComingSoon = downloadComingSoon;
     this.downloadDescription = downloadDescription;
     this.downloadQualityButton = downloadQualityButton;
     this.downloadSettingsTitle = downloadSettingsTitle;
+    this.minutesListenedLabel = minutesListenedLabel;
+    this.minutesListenedValue = minutesListenedValue;
     this.reconnectButton = reconnectButton;
     this.restoreButton = restoreButton;
     this.settingsTitle = settingsTitle;
-    this.storageLocationButton = storageLocationButton;
+    this.streamingStatsDescription = streamingStatsDescription;
+    this.streamingStatsTitle = streamingStatsTitle;
   }
 
   @Override
@@ -171,12 +180,6 @@ public final class FragmentSettingsBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.download_coming_soon;
-      TextView downloadComingSoon = ViewBindings.findChildViewById(rootView, id);
-      if (downloadComingSoon == null) {
-        break missingId;
-      }
-
       id = R.id.download_description;
       TextView downloadDescription = ViewBindings.findChildViewById(rootView, id);
       if (downloadDescription == null) {
@@ -192,6 +195,18 @@ public final class FragmentSettingsBinding implements ViewBinding {
       id = R.id.download_settings_title;
       TextView downloadSettingsTitle = ViewBindings.findChildViewById(rootView, id);
       if (downloadSettingsTitle == null) {
+        break missingId;
+      }
+
+      id = R.id.minutes_listened_label;
+      TextView minutesListenedLabel = ViewBindings.findChildViewById(rootView, id);
+      if (minutesListenedLabel == null) {
+        break missingId;
+      }
+
+      id = R.id.minutes_listened_value;
+      TextView minutesListenedValue = ViewBindings.findChildViewById(rootView, id);
+      if (minutesListenedValue == null) {
         break missingId;
       }
 
@@ -213,17 +228,23 @@ public final class FragmentSettingsBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.storage_location_button;
-      MaterialButton storageLocationButton = ViewBindings.findChildViewById(rootView, id);
-      if (storageLocationButton == null) {
+      id = R.id.streaming_stats_description;
+      TextView streamingStatsDescription = ViewBindings.findChildViewById(rootView, id);
+      if (streamingStatsDescription == null) {
+        break missingId;
+      }
+
+      id = R.id.streaming_stats_title;
+      TextView streamingStatsTitle = ViewBindings.findChildViewById(rootView, id);
+      if (streamingStatsTitle == null) {
         break missingId;
       }
 
       return new FragmentSettingsBinding((ScrollView) rootView, backupButton, backupDescription,
           backupSettingsTitle, clearCacheButton, connectionSettingsTitle, connectionStatusLabel,
-          connectionStatusText, disconnectButton, downloadComingSoon, downloadDescription,
-          downloadQualityButton, downloadSettingsTitle, reconnectButton, restoreButton,
-          settingsTitle, storageLocationButton);
+          connectionStatusText, disconnectButton, downloadDescription, downloadQualityButton,
+          downloadSettingsTitle, minutesListenedLabel, minutesListenedValue, reconnectButton,
+          restoreButton, settingsTitle, streamingStatsDescription, streamingStatsTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

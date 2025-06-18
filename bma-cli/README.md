@@ -270,10 +270,15 @@ GOOS=linux GOARCH=amd64 go build -o bma-cli-linux .
 
 ## License
 
-[Found on main GitHub page]
+[Include your license information here]
+
+## Contributing
+
+[Include contribution guidelines here]
 
 ## Support
 
 For support and issues, please check:
 1. This README for common solutions
 2. The project's issue tracker
+3. Community forums

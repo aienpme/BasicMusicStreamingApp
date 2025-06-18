@@ -9,8 +9,9 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bma.android.adapters.QueueAdapter
 import com.bma.android.databinding.ActivityQueueBinding
 import com.bma.android.models.Song
+import com.bma.android.service.components.ListenerManager
 
-class QueueActivity : AppCompatActivity(), MusicService.MusicServiceListener {
+class QueueActivity : AppCompatActivity(), ListenerManager.MusicServiceListener {
 
     private lateinit var binding: ActivityQueueBinding
     private lateinit var queueAdapter: QueueAdapter

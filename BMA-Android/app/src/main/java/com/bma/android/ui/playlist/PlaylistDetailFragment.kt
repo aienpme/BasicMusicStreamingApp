@@ -17,6 +17,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bma.android.service.components.ListenerManager
 import com.bma.android.MainActivity
 import com.bma.android.MusicService
 import com.bma.android.PlayerActivity
@@ -31,7 +32,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
 
-class PlaylistDetailFragment : Fragment(), MusicService.MusicServiceListener {
+class PlaylistDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
 
     private var _binding: FragmentPlaylistDetailBinding? = null
     private val binding get() = _binding!!
@@ -128,7 +129,7 @@ class PlaylistDetailFragment : Fragment(), MusicService.MusicServiceListener {
         
         // Set up toolbar
         binding.toolbar.setNavigationOnClickListener {
-            (requireActivity() as? MainActivity)?.onPlaylistDetailBackPressed()
+            (requireActivity() as? MainActivity)?.handlePlaylistDetailBackPressed()
         }
         
         // Action buttons
@@ -167,7 +168,7 @@ class PlaylistDetailFragment : Fragment(), MusicService.MusicServiceListener {
                 // Check if it's a horizontal right swipe (swipe from left to right)
                 if (deltaX > 100 && Math.abs(deltaY) < Math.abs(deltaX)) {
                     // Trigger back navigation with the existing transition
-                    (requireActivity() as? MainActivity)?.onPlaylistDetailBackPressed()
+                    (requireActivity() as? MainActivity)?.handlePlaylistDetailBackPressed()
                     return true
                 }
                 return false
@@ -184,7 +185,7 @@ class PlaylistDetailFragment : Fragment(), MusicService.MusicServiceListener {
         backPressedCallback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 // Use custom transition instead of default Android back behavior
-                (requireActivity() as? MainActivity)?.onPlaylistDetailBackPressed()
+                (requireActivity() as? MainActivity)?.handlePlaylistDetailBackPressed()
             }
         }
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backPressedCallback)

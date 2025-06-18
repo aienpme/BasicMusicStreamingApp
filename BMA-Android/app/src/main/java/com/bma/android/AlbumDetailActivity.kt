@@ -26,8 +26,9 @@ import com.bma.android.ui.library.LibraryFragment
 import com.bma.android.ui.search.SearchFragment
 import com.bma.android.ui.settings.SettingsFragment
 import androidx.fragment.app.Fragment
+import com.bma.android.service.components.ListenerManager
 
-class AlbumDetailActivity : AppCompatActivity(), MusicService.MusicServiceListener {
+class AlbumDetailActivity : AppCompatActivity(), ListenerManager.MusicServiceListener {
 
     private lateinit var binding: ActivityAlbumDetailBinding
     private lateinit var album: Album

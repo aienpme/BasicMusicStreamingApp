@@ -200,6 +200,10 @@
         "source": "com.bma.android.app-main-46:/layout/activity_album_detail.xml"
     },
     {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_download_selection.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_download_selection.xml"
+    },
+    {
         "merged": "com.bma.android.app-merged_res-44:/anim_slide_out_right.xml.flat",
         "source": "com.bma.android.app-main-46:/anim/slide_out_right.xml"
     },
@@ -230,6 +234,10 @@
     {
         "merged": "com.bma.android.app-merged_res-44:/xml_network_security_config.xml.flat",
         "source": "com.bma.android.app-main-46:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_download_tab.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_download_tab.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_play_circle.xml.flat",
@@ -310,6 +318,10 @@
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_launcher_foreground.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_activity_download_selection.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/activity_download_selection.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_activity_qr_scanner.xml.flat",

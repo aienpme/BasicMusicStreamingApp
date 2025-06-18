@@ -14,6 +14,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bma.android.service.components.ListenerManager
 import com.bma.android.MainActivity
 import com.bma.android.MusicService
 import com.bma.android.PlayerActivity
@@ -28,7 +29,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
 
-class AlbumDetailFragment : Fragment(), MusicService.MusicServiceListener {
+class AlbumDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
 
     private var _binding: FragmentAlbumDetailBinding? = null
     private val binding get() = _binding!!
@@ -205,7 +206,7 @@ class AlbumDetailFragment : Fragment(), MusicService.MusicServiceListener {
     private fun setupToolbar() {
         binding.toolbar.setNavigationOnClickListener {
             // Trigger back navigation with animation
-            (requireActivity() as? MainActivity)?.onAlbumDetailBackPressed()
+            (requireActivity() as? MainActivity)?.handleAlbumDetailBackPressed()
         }
     }
 

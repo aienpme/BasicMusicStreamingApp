@@ -4,6 +4,40 @@
             "outputFile": "com.bma.android.app-mergeDebugResources-42:/values/values.xml",
             "map": [
                 {
+                    "source": "/Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res/values/colors.xml",
+                    "from": {
+                        "startLines": "3,16,17,8,5,6,18,7,4,13,11,12",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "95,571,621,318,182,224,665,274,140,486,388,435",
+                        "endColumns": "44,49,43,39,41,49,42,43,41,49,46,50",
+                        "endOffsets": "135,616,660,353,219,269,703,313,177,531,430,481"
+                    },
+                    "to": {
+                        "startLines": "724,737,789,790,1046,1055,1056,1059,1064,1069,1070,1071",
+                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4",
+                        "startOffsets": "36144,37149,40822,40866,60043,60673,60723,60881,61221,61549,61599,61646",
+                        "endColumns": "44,49,43,39,41,49,42,43,41,49,46,50",
+                        "endOffsets": "36184,37194,40861,40901,60080,60718,60761,60920,61258,61594,61641,61692"
+                    }
+                },
+                {
+                    "source": "/Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res/values/strings.xml",
+                    "from": {
+                        "startLines": "1",
+                        "startColumns": "4",
+                        "startOffsets": "16",
+                        "endColumns": "40",
+                        "endOffsets": "52"
+                    },
+                    "to": {
+                        "startLines": "2218",
+                        "startColumns": "4",
+                        "startOffsets": "144512",
+                        "endColumns": "40",
+                        "endOffsets": "144548"
+                    }
+                },
+                {
                     "source": "/Users/alex/.gradle/caches/transforms-3/59e76283ca1365bb1da66ce463a46aab/transformed/jetified-viewpager2-1.0.0/res/values/values.xml",
                     "from": {
                         "startLines": "2",
@@ -190,42 +224,6 @@
                     }
                 },
                 {
-                    "source": "/Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/main/res/values/strings.xml",
-                    "from": {
-                        "startLines": "1",
-                        "startColumns": "4",
-                        "startOffsets": "16",
-                        "endColumns": "40",
-                        "endOffsets": "52"
-                    },
-                    "to": {
-                        "startLines": "2218",
-                        "startColumns": "4",
-                        "startOffsets": "144512",
-                        "endColumns": "40",
-                        "endOffsets": "144548"
-                    }
-                },
-                {
-                    "source": "/Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/main/res/values/themes.xml",
-                    "from": {
-                        "startLines": "3,34,27",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "139,1573,1279",
-                        "endLines": "24,42,31",
-                        "endColumns": "12,12,12",
-                        "endOffsets": "1245,2045,1537"
-                    },
-                    "to": {
-                        "startLines": "6836,7663,7672",
-                        "startColumns": "4,4,4",
-                        "startOffsets": "474711,536647,537124",
-                        "endLines": "6857,7671,7676",
-                        "endColumns": "12,12,12",
-                        "endOffsets": "475739,537119,537382"
-                    }
-                },
-                {
                     "source": "/Users/alex/.gradle/caches/transforms-3/7ee984ff7891ed79f1e0ce257e5e27e8/transformed/transition-1.2.0/res/values/values.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11",
@@ -259,40 +257,6 @@
                         "endLines": "543,1253,1254,1255,1263,1264,1265,2038,13208",
                         "endColumns": "55,58,47,55,74,75,71,65,24",
                         "endOffsets": "27133,73503,73551,73607,74293,74369,74441,133380,797761"
-                    }
-                },
-                {
-                    "source": "/Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/main/res/values/ic_launcher_background.xml",
-                    "from": {
-                        "startLines": "2",
-                        "startColumns": "4",
-                        "startOffsets": "55",
-                        "endColumns": "56",
-                        "endOffsets": "107"
-                    },
-                    "to": {
-                        "startLines": "805",
-                        "startColumns": "4",
-                        "startOffsets": "41794",
-                        "endColumns": "56",
-                        "endOffsets": "41846"
-                    }
-                },
-                {
-                    "source": "/Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/main/res/values/colors.xml",
-                    "from": {
-                        "startLines": "3,16,17,8,5,6,18,7,4,13,11,12",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "95,571,621,318,182,224,665,274,140,486,388,435",
-                        "endColumns": "44,49,43,39,41,49,42,43,41,49,46,50",
-                        "endOffsets": "135,616,660,353,219,269,703,313,177,531,430,481"
-                    },
-                    "to": {
-                        "startLines": "724,737,789,790,1046,1055,1056,1059,1064,1069,1070,1071",
-                        "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4",
-                        "startOffsets": "36144,37149,40822,40866,60043,60673,60723,60881,61221,61549,61599,61646",
-                        "endColumns": "44,49,43,39,41,49,42,43,41,49,46,50",
-                        "endOffsets": "36184,37194,40861,40901,60080,60718,60761,60920,61258,61594,61641,61692"
                     }
                 },
                 {
@@ -434,6 +398,25 @@
                     }
                 },
                 {
+                    "source": "/Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res/values/themes.xml",
+                    "from": {
+                        "startLines": "3,34,27",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "139,1573,1279",
+                        "endLines": "24,42,31",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "1245,2045,1537"
+                    },
+                    "to": {
+                        "startLines": "6836,7663,7672",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "474711,536647,537124",
+                        "endLines": "6857,7671,7676",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "475739,537119,537382"
+                    }
+                },
+                {
                     "source": "/Users/alex/.gradle/caches/transforms-3/f4693f0b037462e59fba6fb8f6e5989a/transformed/jetified-customview-poolingcontainer-1.0.0/res/values/values.xml",
                     "from": {
                         "startLines": "2,3",
@@ -448,6 +431,23 @@
                         "startOffsets": "133265,134475",
                         "endColumns": "53,66",
                         "endOffsets": "133314,134537"
+                    }
+                },
+                {
+                    "source": "/Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res/values/ic_launcher_background.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "56",
+                        "endOffsets": "107"
+                    },
+                    "to": {
+                        "startLines": "805",
+                        "startColumns": "4",
+                        "startOffsets": "41794",
+                        "endColumns": "56",
+                        "endOffsets": "41846"
                     }
                 },
                 {

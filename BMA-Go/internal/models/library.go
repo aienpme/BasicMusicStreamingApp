@@ -37,14 +37,15 @@ type MusicLibrary struct {
 	SelectedFolderPath  string    `json:"selectedFolderPath,omitempty"`
 	IsScanning          bool      `json:"isScanning"`
 	onScanningChanged   func(bool)
-	onLibraryChanged    func()
+	onLibraryChanged    []func()  // Changed to slice to support multiple callbacks
 }
 
 // NewMusicLibrary creates a new music library instance
 func NewMusicLibrary() *MusicLibrary {
 	return &MusicLibrary{
-		Songs:  make([]*Song, 0),
-		Albums: make([]*Album, 0),
+		Songs:            make([]*Song, 0),
+		Albums:           make([]*Album, 0),
+		onLibraryChanged: make([]func(), 0),
 	}
 }
 
@@ -117,11 +118,11 @@ func (ml *MusicLibrary) SetScanningChangedCallback(callback func(bool)) {
 	ml.onScanningChanged = callback
 }
 
-// SetLibraryChangedCallback sets the callback for library updates
+// SetLibraryChangedCallback adds a callback for library updates
 func (ml *MusicLibrary) SetLibraryChangedCallback(callback func()) {
 	ml.mutex.Lock()
 	defer ml.mutex.Unlock()
-	ml.onLibraryChanged = callback
+	ml.onLibraryChanged = append(ml.onLibraryChanged, callback)
 }
 
 // SelectFolder sets the selected folder path for music scanning
@@ -215,9 +216,14 @@ func (ml *MusicLibrary) ScanFolder() {
 		log.Println("🔍 [DEBUG] Calling onScanningChanged(false)")
 		ml.onScanningChanged(false)
 	}
-	if ml.onLibraryChanged != nil {
-		log.Println("🔍 [DEBUG] Calling onLibraryChanged()")
-		ml.onLibraryChanged()
+	if len(ml.onLibraryChanged) > 0 {
+		log.Printf("🔍 [DEBUG] Calling %d onLibraryChanged callbacks", len(ml.onLibraryChanged))
+		for i, callback := range ml.onLibraryChanged {
+			if callback != nil {
+				log.Printf("🔍 [DEBUG] Calling onLibraryChanged callback %d", i+1)
+				callback()
+			}
+		}
 	}
 	
 	log.Println("🔍 [DEBUG] ScanFolder completed successfully")

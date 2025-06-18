@@ -126,6 +126,55 @@
 
         </LinearLayout>
 
+        <!-- Streaming Stats Section -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/rounded_background"
+            android:padding="16dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:id="@+id/streaming_stats_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="📊 Streaming Stats"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="12dp" />
+
+            <TextView
+                android:id="@+id/streaming_stats_description"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Your music listening statistics"
+                android:textColor="#B3FFFFFF"
+                android:textSize="14sp"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/minutes_listened_label"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Total Minutes Listened:"
+                android:textColor="#B3FFFFFF"
+                android:textSize="16sp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/minutes_listened_value"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="0 minutes"
+                android:textColor="@android:color/white"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+        </LinearLayout>
+
         <!-- Download Settings Section -->
         <LinearLayout
             android:layout_width="match_parent"
@@ -158,18 +207,10 @@
                 style="@style/Widget.BMA.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🎵 Download Quality"
-                android:enabled="false"
+                android:text="📱 Manage Downloads"
+                android:enabled="true"
                 android:layout_marginBottom="8dp" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/storage_location_button"
-                style="@style/Widget.BMA.Button"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="📁 Storage Location"
-                android:enabled="false"
-                android:layout_marginBottom="8dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/clear_cache_button"
@@ -177,18 +218,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="🗑️ Clear Cache"
-                android:enabled="false" />
+                android:enabled="true" />
 
-            <TextView
-                android:id="@+id/download_coming_soon"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Coming soon..."
-                android:textColor="#66FFFFFF"
-                android:textSize="12sp"
-                android:textStyle="italic"
-                android:gravity="center"
-                android:layout_marginTop="8dp" />
 
         </LinearLayout>
 
