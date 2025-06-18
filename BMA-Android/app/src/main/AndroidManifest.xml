@@ -20,6 +20,19 @@
     <!-- Network state permission to check connectivity -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
+    <!-- Storage permissions for downloading music files -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
+                     android:maxSdkVersion="29" />
+    
+    <!-- For Android 13+ granular media permissions -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    
+    <!-- For Android 11+ "All Files" access - needed for full SAF directory access -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.BIND_VPN_SERVICE" />
     <uses-permission android:name="android.permission.GET_TASKS" />
@@ -68,6 +81,11 @@
         <activity
             android:name=".QRScannerActivity"
             android:screenOrientation="portrait" />
+            
+        <activity
+            android:name=".ui.downloads.DownloadSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
             
         <service
             android:name=".MusicService"

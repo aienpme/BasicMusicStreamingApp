@@ -26,11 +26,12 @@ import com.bma.android.models.LibraryContent
 import com.bma.android.models.Song
 import com.bma.android.models.Playlist
 import com.bma.android.storage.PlaylistManager
+import com.bma.android.storage.OfflineModeManager
 import com.bma.android.ui.playlist.CreatePlaylistDialog
 import com.bma.android.ui.playlist.PlaylistSelectionDialog
 import kotlinx.coroutines.launch
 
-class LibraryFragment : Fragment(R.layout.fragment_library) {
+class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.OfflineModeAware {
 
     private var _binding: FragmentLibraryBinding? = null
     private val binding get() = _binding!!
@@ -38,6 +39,9 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
     private lateinit var libraryAdapter: LibraryAdapter
     private var libraryContent: LibraryContent = LibraryContent(emptyList(), emptyList(), emptyList())
     private var allSongs: List<Song> = emptyList()
+    
+    // Offline mode state
+    private var isOfflineMode = false
     
     // Music service connection
     private var musicService: MusicService? = null
@@ -75,9 +79,24 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         super.onViewCreated(view, savedInstanceState)
         _binding = FragmentLibraryBinding.bind(view)
 
+        // Check current offline mode state
+        isOfflineMode = OfflineModeManager.isOfflineMode()
+
         setupRecyclerView()
         loadAlbums()
         bindMusicService()
+    }
+    
+    override fun onOfflineModeChanged(isOffline: Boolean) {
+        isOfflineMode = isOffline
+        
+        // Only reload if view is available
+        if (_binding != null) {
+            // Reload data with new mode
+            loadAlbums()
+        } else {
+            android.util.Log.d("LibraryFragment", "Offline mode changed but view not available yet")
+        }
     }
     
     override fun onDestroyView() {
@@ -148,26 +167,68 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         lifecycleScope.launch {
             binding.progressBar.isVisible = true
             binding.errorText.isVisible = false
+            
             try {
-                val authHeader = ApiClient.getAuthHeader()
-                if (authHeader == null || ApiClient.isTokenExpired(requireContext())) {
-                    showError("Not authenticated. Please connect in settings.")
-                    return@launch
+                val playlistManager = PlaylistManager.getInstance(requireContext())
+                
+                if (isOfflineMode) {
+                    android.util.Log.d("LibraryFragment", "Loading library in offline mode")
+                    
+                    // Load offline data
+                    val songList = playlistManager.getAllSongsOffline()
+                    val albums = playlistManager.getAllAlbumsOffline()
+                    val playlists = playlistManager.getPlaylistsOffline()
+                    
+                    allSongs = songList // Store for playlist creation
+                    
+                    if (songList.isEmpty()) {
+                        showOfflineEmptyState()
+                        return@launch
+                    }
+                    
+                    // For offline mode, we already have organized albums from the manager
+                    // Just need to find standalone songs
+                    val standaloneSongs = songList.filter { song ->
+                        albums.none { album -> album.songs.contains(song) }
+                    }
+                    
+                    libraryContent = LibraryContent(
+                        playlists = playlists.sortedBy { it.name },
+                        albums = albums.sortedBy { it.name },
+                        standaloneSongs = standaloneSongs.sortedBy { it.title }
+                    )
+                    
+                    libraryAdapter.updateContent(libraryContent)
+                    binding.albumsRecyclerView.isVisible = !libraryContent.isEmpty
+                    
+                } else {
+                    android.util.Log.d("LibraryFragment", "Loading library in online mode")
+                    
+                    // Online mode - original logic
+                    val authHeader = ApiClient.getAuthHeader()
+                    if (authHeader == null || ApiClient.isTokenExpired(requireContext())) {
+                        showError("Not authenticated. Please connect in settings.")
+                        return@launch
+                    }
+
+                    val songList = playlistManager.getAllSongs() // Use PlaylistManager for consistency
+                    allSongs = songList // Store for playlist creation
+                    
+                    // Load playlists from local storage
+                    val playlists = playlistManager.loadPlaylists()
+                    
+                    libraryContent = organizeLibraryContent(songList, playlists)
+                    libraryAdapter.updateContent(libraryContent)
+                    binding.albumsRecyclerView.isVisible = !libraryContent.isEmpty
                 }
 
-                val songList = ApiClient.api.getSongs(authHeader)
-                allSongs = songList // Store for playlist creation
-                
-                // Load playlists from local storage
-                val playlistManager = PlaylistManager.getInstance(requireContext())
-                val playlists = playlistManager.loadPlaylists()
-                
-                libraryContent = organizeLibraryContent(songList, playlists)
-                libraryAdapter.updateContent(libraryContent)
-                binding.albumsRecyclerView.isVisible = !libraryContent.isEmpty
-
             } catch (e: Exception) {
-                showError("Failed to load albums: ${e.message}")
+                val errorMessage = if (isOfflineMode) {
+                    "Failed to load offline library: ${e.message}"
+                } else {
+                    "Failed to load albums: ${e.message}"
+                }
+                showError(errorMessage)
             } finally {
                 binding.progressBar.isVisible = false
             }
@@ -178,6 +239,21 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         binding.errorText.text = message
         binding.errorText.isVisible = true
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+    
+    private fun showOfflineEmptyState() {
+        val message = "🔸 Offline Mode - No Downloaded Music\n\n" +
+                     "You don't have any downloaded music yet.\n" +
+                     "To use offline mode:\n" +
+                     "1. Go back online\n" +
+                     "2. Use Settings → Manage Downloads\n" +
+                     "3. Download your favorite music\n\n" +
+                     "Then you can enjoy your music offline!"
+        
+        binding.errorText.text = message
+        binding.errorText.setTextColor(requireContext().getColor(android.R.color.holo_orange_dark))
+        binding.errorText.isVisible = true
+        binding.albumsRecyclerView.isVisible = false
     }
 
     private fun organizeLibraryContent(songList: List<Song>, playlists: List<Playlist>): LibraryContent {
@@ -264,7 +340,6 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
         dialog.setOnPlaylistCreatedListener { playlistId ->
             // Reload library content to show the new playlist
             loadAlbums()
-            Toast.makeText(requireContext(), "Playlist created successfully!", Toast.LENGTH_SHORT).show()
         }
         dialog.show(parentFragmentManager, "CreatePlaylistDialog")
     }
@@ -347,8 +422,6 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
             
             // Reload library to update UI
             loadAlbums()
-            
-            Toast.makeText(requireContext(), "Playlist '${playlist.name}' deleted", Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -381,8 +454,6 @@ class LibraryFragment : Fragment(R.layout.fragment_library) {
             
             // Reload library to update UI
             loadAlbums()
-            
-            Toast.makeText(requireContext(), "Playlist renamed to '$newName'", Toast.LENGTH_SHORT).show()
         }
     }
     

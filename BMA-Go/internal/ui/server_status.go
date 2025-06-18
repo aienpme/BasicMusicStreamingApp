@@ -1,30 +1,32 @@
 package ui
 
 import (
-	"fmt"
 	"log"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
 	"bma-go/internal/server"
+	customTheme "bma-go/internal/ui/theme"
 )
 
 // ServerStatusBar represents the server status and controls, equivalent to ServerStatusBar.swift
 type ServerStatusBar struct {
-	serverManager   *server.ServerManager
-	serverButton    *widget.Button
-	serverLabel     *widget.Label
-	qrButton        *widget.Button
-	tailscaleLabel  *widget.Label
-	refreshButton   *widget.Button
-	content         *fyne.Container
-	qrWindow        fyne.Window  // Track QR window for auto-hiding
+	serverManager     *server.ServerManager
+	serverButton      *customTheme.ModernButton
+	serverStatusLabel *widget.Label
+	qrButton          *customTheme.ModernButton
+	tailscaleLabel    *widget.Label
+	refreshButton     *customTheme.ModernButton
+	content           *fyne.Container
+	qrSection         *QRCodeSection
+	mainContainer     *fyne.Container
+	qrVisible         bool // Track visibility state
+	onResizeRequest   func() // Callback to request a window resize to fit content
+	animationCoord    *AnimationCoordinator // Animation coordinator for QR ↔ Albums transitions
 }
 
 // NewServerStatusBar creates a new server status bar
@@ -39,32 +41,44 @@ func NewServerStatusBar(serverManager *server.ServerManager) *ServerStatusBar {
 
 // initialize sets up the UI components
 func (bar *ServerStatusBar) initialize() {
-	// Server control button - now shows status instead of manual control
-	bar.serverButton = widget.NewButton("Server Status", bar.toggleServer)
+	// Server control button - clean style
+	bar.serverButton = customTheme.NewModernButton("Server", bar.toggleServer)
+	bar.serverButton.SetImportance(widget.MediumImportance)
 
-	// Server status label - fixed width to prevent layout changes
-	bar.serverLabel = widget.NewLabel("Server: Auto-starting...")
-	bar.serverLabel.Resize(fyne.NewSize(200, 30)) // Fixed width and height
+	// Server status label - subtle text
+	bar.serverStatusLabel = widget.NewLabel("Starting")
+	bar.serverStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	// QR code generation button - now for manual regeneration
-	bar.qrButton = widget.NewButton("New QR Code", bar.generateQR)
+	// QR code generation button - toggles inline QR
+	bar.qrButton = customTheme.NewModernButton("QR Code", bar.toggleQR)
+	bar.qrButton.SetImportance(widget.HighImportance)
 	bar.qrButton.Disable() // Disabled until server starts
 
-	// Tailscale status label - fixed width
-	bar.tailscaleLabel = widget.NewLabel("Tailscale: Checking...")
-	bar.tailscaleLabel.Resize(fyne.NewSize(150, 30)) // Fixed width and height
+	// Tailscale status label - subtle text
+	bar.tailscaleLabel = widget.NewLabel("Checking")
+	bar.tailscaleLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	// Refresh button for manual status updates
-	bar.refreshButton = widget.NewButton("Refresh", bar.refreshStatus)
+	// Refresh button - smaller, less prominent
+	bar.refreshButton = customTheme.NewModernButton("Refresh", bar.refreshStatus)
 
-	// Layout with consistent spacing - no separators to avoid layout shifts
-	bar.content = container.NewHBox(
+	// Create a cleaner layout
+	statusContent := container.NewHBox(
 		bar.serverButton,
-		container.NewBorder(nil, nil, nil, nil, bar.serverLabel), // Stable container
+		bar.serverStatusLabel,
+		layout.NewSpacer(),   // Push QR button to center
 		bar.qrButton,
-		container.NewBorder(nil, nil, nil, nil, bar.tailscaleLabel), // Stable container
+		layout.NewSpacer(),   // Balance the layout
+		bar.tailscaleLabel,
 		bar.refreshButton,
 	)
+
+	// Create QR section and connect its callbacks
+	bar.qrSection = NewQRCodeSection()
+	bar.qrSection.SetOnRefresh(bar.regenerateQR)
+	bar.qrSection.SetOnClose(bar.toggleQR)
+
+	// Main layout
+	bar.content = container.NewVBox(statusContent, bar.qrSection)
 
 	// Initial status update
 	bar.updateUI()
@@ -78,23 +92,24 @@ func (bar *ServerStatusBar) toggleServer() {
 	if bar.serverManager.IsRunning {
 		// Stop server
 		bar.serverManager.StopServer()
-		bar.serverButton.SetText("Server Status")
-		bar.serverLabel.SetText("Server: Stopped")
+		bar.serverButton.Text = "Start"
+		bar.serverButton.Refresh()
+		bar.serverStatusLabel.SetText("Stopped")
 		bar.qrButton.Disable()
 		
-		// Close QR window if open
-		if bar.qrWindow != nil {
-			bar.qrWindow.Close()
-			bar.qrWindow = nil
+		// If QR is visible, hide it.
+		if bar.qrSection.IsExpanded() {
+			bar.toggleQR()
 		}
 	} else {
 		// Start server manually (in case auto-start failed)
 		go func() {
 			err := bar.serverManager.StartServer()
 			if err != nil {
-				bar.serverLabel.SetText(fmt.Sprintf("Error: %v", err))
+				bar.serverStatusLabel.SetText("Error")
 			} else {
-				bar.serverButton.SetText("Stop Server")
+				bar.serverButton.Text = "Stop"
+				bar.serverButton.Refresh()
 				bar.updateServerStatus()
 				bar.qrButton.Enable()
 				
@@ -102,147 +117,98 @@ func (bar *ServerStatusBar) toggleServer() {
 				go bar.AutoGenerateQR()
 			}
 		}()
-		bar.serverLabel.SetText("Server: Starting...")
+		bar.serverStatusLabel.SetText("Starting...")
 	}
 }
 
-// generateQR shows the QR code for pairing
-func (bar *ServerStatusBar) generateQR() {
+// toggleQR toggles between QR code and albums using the animation coordinator
+func (bar *ServerStatusBar) toggleQR() {
+	if !bar.serverManager.IsRunning && bar.animationCoord != nil && bar.animationCoord.IsAlbumsVisible() {
+		return
+	}
+
+	// Use animation coordinator if available, otherwise fall back to old behavior
+	if bar.animationCoord != nil {
+		if bar.animationCoord.IsQRVisible() {
+			// HIDE QR: Show albums
+			log.Println("🎬 [SERVER] Hiding QR, showing albums")
+			bar.qrButton.Text = "QR Code"
+			bar.qrButton.Refresh()
+			
+			// Use animation coordinator for smooth transition
+			bar.animationCoord.ShowAlbums(nil)
+		} else {
+			// SHOW QR: Hide albums, show QR
+			log.Println("🎬 [SERVER] Showing QR, hiding albums")
+			bar.qrButton.Text = "Hide QR"
+			bar.qrButton.Refresh()
+			
+			// Generate QR code data first
+			qrBytes, jsonData, err := bar.serverManager.GenerateQRCode()
+			if err != nil {
+				log.Printf("❌ QR generation failed: %v", err)
+				return
+			}
+			bar.qrSection.SetQRCode(qrBytes, jsonData)
+			
+			// Use animation coordinator for smooth transition
+			bar.animationCoord.ShowQRCode(nil)
+		}
+	} else {
+		// Fallback to old behavior if no animation coordinator
+		log.Println("⚠️ [SERVER] No animation coordinator, using fallback QR toggle")
+		if bar.qrSection.IsExpanded() {
+			bar.qrButton.Text = "QR Code"
+			bar.qrButton.Refresh()
+			bar.qrSection.Toggle(nil)
+		} else {
+			bar.qrButton.Text = "Hide QR"
+			bar.qrButton.Refresh()
+			
+			qrBytes, jsonData, err := bar.serverManager.GenerateQRCode()
+			if err != nil {
+				log.Printf("❌ QR generation failed: %v", err)
+				return
+			}
+			bar.qrSection.SetQRCode(qrBytes, jsonData)
+			bar.qrSection.Toggle(nil)
+		}
+	}
+}
+
+// regenerateQR generates a new QR code while section is open
+func (bar *ServerStatusBar) regenerateQR() {
 	if !bar.serverManager.IsRunning {
 		return
 	}
 
-	log.Println("🔑 Generating QR code for device pairing...")
+	log.Println("🔄 Regenerating QR code...")
 
-	// Generate QR code using ServerManager
 	qrBytes, jsonData, err := bar.serverManager.GenerateQRCode()
 	if err != nil {
-		log.Printf("❌ QR generation failed: %v", err)
-		bar.showErrorDialog(fmt.Sprintf("QR Generation Error: %v", err))
+		log.Printf("❌ QR regeneration failed: %v", err)
 		return
 	}
 
-	// Debug: Check if we actually have QR code data
-	log.Printf("🔍 QR code generated: %d bytes", len(qrBytes))
-	if len(qrBytes) == 0 {
-		log.Println("❌ QR code is empty!")
-		bar.showErrorDialog("QR code generation returned empty data")
-		return
-	}
+	// Update QR section
+	bar.qrSection.SetQRCode(qrBytes, jsonData)
 
-	// Show QR code dialog
-	bar.showQRCodeDialog(qrBytes, jsonData)
-}
-
-// showQRCodeDialog displays the QR code image and pairing information in a resizable window
-func (bar *ServerStatusBar) showQRCodeDialog(qrBytes []byte, jsonData string) {
-	app := fyne.CurrentApp()
-	qrWindow := app.NewWindow("Device Pairing QR Code")
-	bar.qrWindow = qrWindow  // Store window reference for auto-hiding
-	
-	qrWindow.SetCloseIntercept(func() {
-		bar.qrWindow = nil  // Clear reference when window closes
-		qrWindow.Close()
-	})
-	
-	// Create QR code image with Mac app's approach
-	qrResource := fyne.NewStaticResource("qr_code.png", qrBytes)
-	qrImage := canvas.NewImageFromResource(qrResource)
-	
-	// Key settings from Mac app: no interpolation, fixed size
-	qrImage.FillMode = canvas.ImageFillOriginal // Don't scale/stretch - keep original
-	qrImage.Resize(fyne.NewSize(150, 150))      // Even smaller 150x150 size
-	
-	// Simple white card background like Mac app
-	qrCard := widget.NewCard("", "", container.NewCenter(qrImage))
-	qrCard.Resize(fyne.NewSize(180, 180)) // Adjust card size accordingly
-	
-	// Center the QR code card in the window
-	centeredQR := container.NewCenter(qrCard)
-	
-	// Compact instructions at the bottom
-	instructions := widget.NewRichTextFromMarkdown(
-		"**1.** Open BMA Android app → 'Scan QR Code'  **2.** Point camera at QR code  **3.** Done!\n" +
-		"💡 **QR code is fixed at optimal scanning size (150×150px)**")
-	instructions.Wrapping = fyne.TextWrapWord
-	
-	// Buttons in a compact row
-	copyBtn := widget.NewButton("Copy JSON", func() {
-		qrWindow.Clipboard().SetContent(jsonData)
-		log.Println("🔑 QR code JSON copied to clipboard")
-	})
-	
-	saveBtn := widget.NewButton("Save PNG", func() {
-		err := os.WriteFile("qr_code.png", qrBytes, 0644)
-		if err != nil {
-			log.Printf("❌ Failed to save QR: %v", err)
-		} else {
-			log.Println("✅ QR code saved as qr_code.png")
-		}
-	})
-	
-	refreshBtn := widget.NewButton("New QR", func() {
-		qrWindow.Close()
-		bar.generateQR()
-	})
-	
-	closeBtn := widget.NewButton("Close", func() {
-		qrWindow.Close()
-	})
-	closeBtn.Importance = widget.HighImportance
-	
-	buttonRow := container.NewHBox(
-		copyBtn,
-		widget.NewSeparator(),
-		saveBtn, 
-		widget.NewSeparator(),
-		refreshBtn,
-		widget.NewSeparator(),
-		closeBtn,
-	)
-	
-	// Layout like Mac app: QR code centered, controls at bottom
-	bottomPanel := container.NewVBox(
-		widget.NewSeparator(),
-		instructions,
-		widget.NewSeparator(),
-		buttonRow,
-	)
-	
-	// Main layout: Fixed QR code in center
-	content := container.NewBorder(
-		nil,          // top
-		bottomPanel,  // bottom (compact)
-		nil,          // left  
-		nil,          // right
-		centeredQR,   // center - QR code at fixed optimal size
-	)
-	
-	qrWindow.SetContent(content)
-	qrWindow.Resize(fyne.NewSize(380, 350)) // Smaller window for compact QR code
-	qrWindow.SetFixedSize(true)             // Fixed size like Mac app
-	qrWindow.Show()
-	
-	log.Println("✅ Mac-style QR code window displayed")
+	go func() {
+		time.Sleep(1 * time.Second) // Give the server a moment
+		bar.updateUI()
+		bar.toggleQR() // Use the standard toggle logic
+	}()
 }
 
 // showErrorDialog displays error messages
 func (bar *ServerStatusBar) showErrorDialog(message string) {
-	content := widget.NewCard("Error", "", 
-		container.NewVBox(
-			widget.NewIcon(theme.ErrorIcon()),
-			widget.NewLabel(message),
+	dialog := widget.NewPopUp(
+		widget.NewCard("Error", message,
 			widget.NewButton("OK", func() {}),
 		),
+		fyne.CurrentApp().Driver().AllWindows()[0].Canvas(),
 	)
-
-	dialog := widget.NewModalPopUp(content, fyne.CurrentApp().Driver().AllWindows()[0].Canvas())
 	dialog.Show()
-
-	go func() {
-		time.Sleep(5 * time.Second)
-		dialog.Hide()
-	}()
 }
 
 // refreshStatus manually refreshes all status information
@@ -250,7 +216,8 @@ func (bar *ServerStatusBar) refreshStatus() {
 	bar.serverManager.RefreshTailscaleStatus()
 	bar.updateUI()
 	
-	bar.tailscaleLabel.SetText("Tailscale: Refreshing...")
+	bar.tailscaleLabel.SetText("Refreshing...")
+	
 	go func() {
 		time.Sleep(2 * time.Second)
 		bar.updateTailscaleStatus()
@@ -266,17 +233,19 @@ func (bar *ServerStatusBar) updateUI() {
 // updateServerStatus updates the server status display
 func (bar *ServerStatusBar) updateServerStatus() {
 	if bar.serverManager.IsRunning {
-		bar.serverButton.SetText("Stop Server")
+		bar.serverButton.Text = "Stop"
+		bar.serverButton.Refresh()
 		// Show clean status instead of long URL
 		if bar.serverManager.IsTailscaleConfigured() {
-			bar.serverLabel.SetText("Server: Running")
+			bar.serverStatusLabel.SetText("Running")
 		} else {
-			bar.serverLabel.SetText("Server: Running (Local)")
+			bar.serverStatusLabel.SetText("Local")
 		}
 		bar.qrButton.Enable()
 	} else {
-		bar.serverButton.SetText("Start Server")
-		bar.serverLabel.SetText("Server: Stopped")
+		bar.serverButton.Text = "Start"
+		bar.serverButton.Refresh()
+		bar.serverStatusLabel.SetText("Stopped")
 		bar.qrButton.Disable()
 	}
 }
@@ -284,9 +253,9 @@ func (bar *ServerStatusBar) updateServerStatus() {
 // updateTailscaleStatus updates the Tailscale status display
 func (bar *ServerStatusBar) updateTailscaleStatus() {
 	if bar.serverManager.IsTailscaleConfigured() {
-		bar.tailscaleLabel.SetText("Tailscale: Connected")
+		bar.tailscaleLabel.SetText("Tailscale")
 	} else {
-		bar.tailscaleLabel.SetText("Tailscale: Not detected")
+		bar.tailscaleLabel.SetText("No Tailscale")
 	}
 }
 
@@ -322,23 +291,12 @@ func (bar *ServerStatusBar) AutoGenerateQR() {
 	// Update UI to reflect server running state
 	bar.updateServerStatus()
 
-	// Generate QR code using ServerManager
-	qrBytes, jsonData, err := bar.serverManager.GenerateQRCode()
-	if err != nil {
-		log.Printf("❌ Auto QR generation failed: %v", err)
-		return
+	// Use the standard toggleQR method to ensure proper animation sequence
+	if !bar.qrSection.IsExpanded() {
+		bar.toggleQR()
 	}
-
-	// Debug: Check if we actually have QR code data
-	log.Printf("🔍 Auto-generated QR code: %d bytes", len(qrBytes))
-	if len(qrBytes) == 0 {
-		log.Println("❌ Auto-generated QR code is empty!")
-		return
-	}
-
-	// Automatically show QR code dialog
-	bar.showQRCodeDialog(qrBytes, jsonData)
-	log.Println("✅ QR code auto-displayed - ready for device pairing!")
+	
+	log.Println("✅ QR code auto-displayed inline - ready for device pairing!")
 }
 
 // startDeviceMonitoring monitors for device connections to auto-hide QR codes
@@ -347,28 +305,39 @@ func (bar *ServerStatusBar) startDeviceMonitoring() {
 	
 	go func() {
 		var lastDeviceCount int
-		
 		for {
-			time.Sleep(2 * time.Second) // Check every 2 seconds
+			time.Sleep(2 * time.Second)
 			
-			// Get current device count
-			connectedDevices := bar.serverManager.GetConnectedDevices()
-			currentDeviceCount := len(connectedDevices)
+			currentDeviceCount := len(bar.serverManager.GetConnectedDevices())
 			
-			// If device count increased (new device connected) and QR window is open
-			if currentDeviceCount > lastDeviceCount && bar.qrWindow != nil {
-				log.Printf("📱 [QR AUTO-HIDE] Device connected! Closing QR code window (devices: %d → %d)", lastDeviceCount, currentDeviceCount)
-				
-				// Close QR window on UI thread
-				go func() {
-					if bar.qrWindow != nil {
-						bar.qrWindow.Close()
-						bar.qrWindow = nil
-					}
-				}()
+			// If a new device connected and the QR code is visible, hide it.
+			if currentDeviceCount > lastDeviceCount && bar.qrSection.IsExpanded() {
+				log.Printf("📱 [QR AUTO-HIDE] Device connected! Collapsing QR section.")
+				bar.toggleQR()
 			}
 			
 			lastDeviceCount = currentDeviceCount
 		}
 	}()
-} 
+}
+
+// SetOnResizeRequest sets the callback for when the status bar needs to resize the window
+func (bar *ServerStatusBar) SetOnResizeRequest(callback func()) {
+	bar.onResizeRequest = callback
+}
+
+// GetQRSection returns the QR code section for external access
+func (bar *ServerStatusBar) GetQRSection() *QRCodeSection {
+	return bar.qrSection
+}
+
+// SetAnimationCoordinator sets the animation coordinator for QR ↔ Albums transitions
+func (bar *ServerStatusBar) SetAnimationCoordinator(coord *AnimationCoordinator) {
+	bar.animationCoord = coord
+}
+
+// onQRSectionExpanded is no longer needed
+// func (bar *ServerStatusBar) onQRSectionExpanded(expanded bool) {}
+
+// generateAndShowQR is replaced by toggleQR
+// func (bar *ServerStatusBar) generateAndShowQR() {} 

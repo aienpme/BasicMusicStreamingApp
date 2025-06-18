@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"bma-go/internal/models"
+	customTheme "bma-go/internal/ui/theme"
 )
 
 // SetupWizard represents the setup wizard controller
@@ -19,8 +20,8 @@ type SetupWizard struct {
 	currentStep    int
 	steps          []SetupStep
 	onComplete     func()
-	backButton     *widget.Button
-	nextButton     *widget.Button
+	backButton     *customTheme.ModernButton
+	nextButton     *customTheme.ModernButton
 }
 
 // SetupStep interface for individual setup steps
@@ -102,14 +103,23 @@ func (sw *SetupWizard) GetContent() fyne.CanvasObject {
 	scroll := container.NewScroll(sw.contentContainer)
 	scroll.SetMinSize(fyne.NewSize(480, 300))
 	
-	// Create navigation buttons
-	sw.backButton = widget.NewButton("Back", sw.goBack)
-	sw.nextButton = widget.NewButton("Continue", sw.goNext)
+	// Create clean navigation buttons
+	sw.backButton = customTheme.NewModernButton("Back", sw.goBack)
+	sw.nextButton = customTheme.NewModernButton("Continue", sw.goNext)
+	sw.nextButton.SetImportance(widget.HighImportance)
 	
 	// Set initial button states
 	sw.updateButtonStates()
 	
-	buttonContainer := container.NewBorder(nil, nil, sw.backButton, sw.nextButton)
+	// Spacer for centering buttons
+	spacer := widget.NewLabel("")
+	
+	buttonContainer := container.NewBorder(
+		nil, nil,
+		sw.backButton,
+		sw.nextButton,
+		spacer,
+	)
 	
 	// Main layout
 	content := container.NewBorder(
@@ -135,9 +145,11 @@ func (sw *SetupWizard) updateButtonStates() {
 	// Next button - depends on step's CanContinue and button text
 	if sw.currentStep >= len(sw.steps)-1 {
 		// Last step - complete setup
-		sw.nextButton.SetText("Start Streaming")
+		sw.nextButton.Text = "Start Streaming"
+		sw.nextButton.Refresh()
 	} else {
-		sw.nextButton.SetText("Continue")
+		sw.nextButton.Text = "Continue"
+		sw.nextButton.Refresh()
 	}
 	
 	// Enable/disable based on step's continuation rules

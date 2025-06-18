@@ -5,9 +5,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.util.Log
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.bma.android.api.ApiClient
 import com.bma.android.databinding.ActivityPlayerBinding
 import com.bma.android.models.Song
@@ -15,8 +18,9 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import com.bma.android.service.components.ListenerManager
 
-class PlayerActivity : AppCompatActivity(), MusicService.MusicServiceListener {
+class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener {
 
     private lateinit var binding: ActivityPlayerBinding
     
@@ -185,25 +189,51 @@ class PlayerActivity : AppCompatActivity(), MusicService.MusicServiceListener {
     }
     
     private fun loadAlbumArtwork(song: Song) {
-        val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-        val authHeader = ApiClient.getAuthHeader()
-        
-        if (authHeader != null) {
-            val glideUrl = GlideUrl(
-                artworkUrl, 
-                LazyHeaders.Builder()
-                    .addHeader("Authorization", authHeader)
-                    .build()
-            )
-            
-            Glide.with(this)
-                .load(glideUrl)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.ic_folder)
-                .error(R.drawable.ic_folder)
-                .into(binding.albumArt)
-        } else {
-            binding.albumArt.setImageResource(R.drawable.ic_folder)
+        lifecycleScope.launch {
+            try {
+                val artworkPath = com.bma.android.utils.ArtworkUtils.getArtworkPath(this@PlayerActivity, song)
+                
+                // Handle different path types
+                when {
+                    artworkPath.startsWith("file://") -> {
+                        // Local file - load directly
+                        Glide.with(this@PlayerActivity)
+                            .load(artworkPath)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
+                            .placeholder(R.drawable.ic_folder)
+                            .error(R.drawable.ic_folder)
+                            .into(binding.albumArt)
+                    }
+                    artworkPath.isBlank() -> {
+                        // No artwork available - use fallback
+                        binding.albumArt.setImageResource(R.drawable.ic_folder)
+                    }
+                    else -> {
+                        // Server URL - load with auth headers
+                        val authHeader = ApiClient.getAuthHeader()
+                        if (authHeader != null) {
+                            val glideUrl = GlideUrl(
+                                artworkPath, 
+                                LazyHeaders.Builder()
+                                    .addHeader("Authorization", authHeader)
+                                    .build()
+                            )
+                            
+                            Glide.with(this@PlayerActivity)
+                                .load(glideUrl)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_folder)
+                                .error(R.drawable.ic_folder)
+                                .into(binding.albumArt)
+                        } else {
+                            binding.albumArt.setImageResource(R.drawable.ic_folder)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("PlayerActivity", "Error loading album artwork: ${e.message}", e)
+                binding.albumArt.setImageResource(R.drawable.ic_folder)
+            }
         }
     }
     

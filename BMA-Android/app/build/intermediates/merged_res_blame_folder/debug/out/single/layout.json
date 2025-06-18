@@ -72,6 +72,18 @@
         "source": "com.bma.android.app-main-46:/layout/dialog_create_playlist.xml"
     },
     {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_download_selection.xml",
+        "source": "com.bma.android.app-main-46:/layout/item_download_selection.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/activity_download_selection.xml",
+        "source": "com.bma.android.app-main-46:/layout/activity_download_selection.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/fragment_download_tab.xml",
+        "source": "com.bma.android.app-main-46:/layout/fragment_download_tab.xml"
+    },
+    {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/fragment_loading.xml",
         "source": "com.bma.android.app-main-46:/layout/fragment_loading.xml"
     },

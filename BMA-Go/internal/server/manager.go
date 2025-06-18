@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -39,6 +40,11 @@ type ServerManager struct {
 	pairingTokens    map[string]time.Time // token -> expiration
 	tokensMutex      sync.RWMutex
 	currentPairingToken string
+	
+	// QR code caching for fast loading
+	cachedQRBytes    []byte
+	cachedQRJSON     string
+	qrCacheMutex     sync.RWMutex
 	
 	// Flatpak detection
 	useFlatpakSpawn bool
@@ -113,6 +119,9 @@ func (sm *ServerManager) StartServer() error {
 	log.Println("✅ BMA server started successfully!")
 	sm.logServerInfo()
 	
+	// Preload QR code for instant access
+	sm.PreloadQRCode()
+	
 	return nil
 }
 
@@ -138,6 +147,7 @@ func (sm *ServerManager) StopServer() error {
 	
 	// Clear state
 	sm.IsRunning = false
+	sm.ClearQRCache() // Clear QR cache when server stops
 	sm.ServerURL = ""
 	sm.clearConnectedDevices()
 	sm.revokeAllTokens()
@@ -525,32 +535,93 @@ func (rw *responseWriter) WriteHeader(code int) {
 
 // QR Code Generation Methods
 
-// GenerateQRCode creates a QR code for device pairing
+// GenerateQRCode creates a QR code for device pairing with caching for speed
 func (sm *ServerManager) GenerateQRCode() ([]byte, string, error) {
 	if !sm.IsRunning {
 		return nil, "", fmt.Errorf("server is not running")
 	}
-	
-	// Generate a new pairing token (60 minutes expiration)
-	token := sm.GeneratePairingToken(60)
-	expiresAt := time.Now().Add(60 * time.Minute)
-	serverURL := sm.GetPreferredURL()
-	
-	log.Printf("🔑 Generating QR code for URL: %s", serverURL)
-	log.Printf("🔑 Token: %s... (expires in 60 minutes)", token[:8])
-	
-	// Create QR generator and generate code
-	qrGen := models.NewQRCodeGenerator()
-	qrBytes, err := qrGen.GeneratePairingQR(serverURL, token, expiresAt)
+
+	// Check cache first for instant loading
+	sm.qrCacheMutex.RLock()
+	if sm.cachedQRBytes != nil && sm.cachedQRJSON != "" {
+		log.Printf("⚡ Using cached QR code (%d bytes)", len(sm.cachedQRBytes))
+		cachedBytes := make([]byte, len(sm.cachedQRBytes))
+		copy(cachedBytes, sm.cachedQRBytes)
+		cachedJSON := sm.cachedQRJSON
+		sm.qrCacheMutex.RUnlock()
+		return cachedBytes, cachedJSON, nil
+	}
+	sm.qrCacheMutex.RUnlock()
+
+	// Generate new QR code if not cached
+	log.Println("🔄 Generating new QR code...")
+	jsonData, err := sm.GetPairingDataAsJSON()
 	if err != nil {
-		log.Printf("❌ QR code generation failed: %v", err)
-		return nil, "", err
+		return nil, "", fmt.Errorf("failed to get pairing data: %w", err)
+	}
+
+	qrBytes, err := models.GenerateQRCode(jsonData)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate QR code: %w", err)
+	}
+
+	// Cache the result for future fast access
+	sm.qrCacheMutex.Lock()
+	sm.cachedQRBytes = make([]byte, len(qrBytes))
+	copy(sm.cachedQRBytes, qrBytes)
+	sm.cachedQRJSON = jsonData
+	sm.qrCacheMutex.Unlock()
+
+	log.Printf("✅ QR code generated and cached (%d bytes)", len(qrBytes))
+	return qrBytes, jsonData, nil
+}
+
+// ClearQRCache clears the cached QR code (call when server stops or URLs change)
+func (sm *ServerManager) ClearQRCache() {
+	sm.qrCacheMutex.Lock()
+	sm.cachedQRBytes = nil
+	sm.cachedQRJSON = ""
+	sm.qrCacheMutex.Unlock()
+	log.Println("🗑️ QR code cache cleared")
+}
+
+// PreloadQRCode generates and caches QR code in background for instant access
+func (sm *ServerManager) PreloadQRCode() {
+	if !sm.IsRunning {
+		return
 	}
 	
-	// Also get JSON for logging/debugging
-	jsonData, _ := qrGen.GetPairingDataJSON(serverURL, token, expiresAt)
-	log.Printf("📋 QR Code contains:\n%s", jsonData)
-	
-	log.Printf("✅ QR code generated successfully (%d bytes)", len(qrBytes))
-	return qrBytes, jsonData, nil
+	go func() {
+		log.Println("⚡ Preloading QR code for instant access...")
+		_, _, err := sm.GenerateQRCode()
+		if err != nil {
+			log.Printf("⚠️ QR preload failed: %v", err)
+		} else {
+			log.Println("✅ QR code preloaded successfully")
+		}
+	}()
+}
+
+// GetPairingDataAsJSON returns the pairing data as JSON
+func (sm *ServerManager) GetPairingDataAsJSON() (string, error) {
+	if !sm.IsRunning {
+		return "", fmt.Errorf("server is not running")
+	}
+
+	token := sm.GeneratePairingToken(60) // 60-minute expiration
+	expiresAt := time.Now().Add(60 * time.Minute)
+	serverURL := sm.GetPreferredURL()
+
+	pairingData := models.PairingData{
+		ServerURL: serverURL,
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	jsonData, err := json.MarshalIndent(pairingData, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal pairing data: %w", err)
+	}
+
+	return string(jsonData), nil
 }

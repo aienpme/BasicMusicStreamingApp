@@ -32,11 +32,15 @@ import com.bma.android.models.Album
 import com.bma.android.models.SearchPlayHistory
 import com.bma.android.models.Song
 import com.bma.android.storage.SearchPlayHistoryManager
+import com.bma.android.storage.OfflineModeManager
+import com.bma.android.storage.PlaylistManager
+import com.bma.android.storage.DownloadManager
 import com.bma.android.ui.playlist.PlaylistSelectionDialog
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import java.io.File
 import kotlinx.coroutines.launch
 
 // Sealed class for search result types
@@ -45,7 +49,7 @@ sealed class SearchResult {
     data class AlbumResult(val album: Album) : SearchResult()
 }
 
-class SearchFragment : Fragment(R.layout.fragment_search) {
+class SearchFragment : Fragment(R.layout.fragment_search), MainActivity.OfflineModeAware {
 
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
@@ -54,6 +58,9 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private lateinit var recentlyPlayedAdapter: RecentlyPlayedAdapter
     private var allAlbums = listOf<Album>()
     private var allSongs = listOf<Song>()
+    
+    // Offline mode state
+    private var isOfflineMode = false
     
     // Search play history manager
     private lateinit var searchPlayHistoryManager: SearchPlayHistoryManager
@@ -100,12 +107,27 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         
         // Initialize search play history manager
         searchPlayHistoryManager = SearchPlayHistoryManager.getInstance(requireContext())
+        
+        // Check current offline mode state
+        isOfflineMode = OfflineModeManager.isOfflineMode()
 
         setupRecyclerViews()
         setupSearchView()
         loadAllMusicForSearching()
         loadRecentlyPlayed()
         bindMusicService()
+    }
+    
+    override fun onOfflineModeChanged(isOffline: Boolean) {
+        isOfflineMode = isOffline
+        
+        // Only reload if view is available
+        if (_binding != null) {
+            // Reload data with new mode
+            loadAllMusicForSearching()
+        } else {
+            android.util.Log.d("SearchFragment", "Offline mode changed but view not available yet")
+        }
     }
     
     override fun onPause() {
@@ -193,6 +215,7 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         // For recently played songs from search
         recentlyPlayedAdapter = RecentlyPlayedAdapter(
             allAlbums = { allAlbums }, // Pass albums for artwork loading
+            allSongs = { allSongs }, // Pass songs for artwork loading
             onItemClick = { historyItem ->
                 // Check if this is an album entry (has album_ prefix in songId)
                 if (historyItem.songId.startsWith("album_")) {
@@ -267,6 +290,13 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         binding.searchResultsRecyclerView.isVisible = false
         binding.recentlyPlayedRecyclerView.isVisible = true
         binding.recentlyPlayedTitle.isVisible = true
+        
+        // Show offline indicator if in offline mode  
+        if (isOfflineMode) {
+            binding.recentlyPlayedTitle.text = "🔸 Recently Played (Offline Mode)"
+        } else {
+            binding.recentlyPlayedTitle.text = "Recently Played"
+        }
     }
 
     private fun showSearchResults() {
@@ -274,18 +304,43 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         binding.recentlyPlayedRecyclerView.isVisible = false
         binding.recentlyPlayedTitle.isVisible = false
     }
+    
+    private fun updateSearchHint(hint: String) {
+        // Hint removed - no toast notifications for search state
+    }
 
     private fun loadAllMusicForSearching() {
         lifecycleScope.launch {
             try {
-                val authHeader = ApiClient.getAuthHeader()
-                if (authHeader == null || ApiClient.isTokenExpired(requireContext())) {
-                    return@launch
+                val playlistManager = PlaylistManager.getInstance(requireContext())
+                
+                if (isOfflineMode) {
+                    android.util.Log.d("SearchFragment", "Loading music for search in offline mode")
+                    
+                    // Load offline data
+                    val songList = playlistManager.getAllSongsOffline()
+                    val albums = playlistManager.getAllAlbumsOffline()
+                    
+                    allSongs = songList
+                    allAlbums = albums
+                    
+                    android.util.Log.d("SearchFragment", "Loaded ${allSongs.size} songs and ${allAlbums.size} albums for offline search")
+                } else {
+                    android.util.Log.d("SearchFragment", "Loading music for search in online mode")
+                    
+                    // Online mode - original logic
+                    val authHeader = ApiClient.getAuthHeader()
+                    if (authHeader == null || ApiClient.isTokenExpired(requireContext())) {
+                        return@launch
+                    }
+                    val songList = playlistManager.getAllSongs() // Use PlaylistManager for consistency
+                    allSongs = songList
+                    allAlbums = organizeSongsIntoAlbums(songList)
+                    
+                    android.util.Log.d("SearchFragment", "Loaded ${allSongs.size} songs for online search")
                 }
-                val songList = ApiClient.api.getSongs(authHeader)
-                allSongs = songList
-                allAlbums = organizeSongsIntoAlbums(songList)
             } catch (e: Exception) {
+                android.util.Log.e("SearchFragment", "Error loading music for search", e)
                 // Errors will be handled on the Library/Settings screen, silently fail here
             }
         }
@@ -294,6 +349,14 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
     private fun performSearch(query: String) {
         showSearchResults()
         val lowerCaseQuery = query.lowercase()
+        
+        // Show offline indicator if in offline mode
+        if (isOfflineMode) {
+            updateSearchHint("🔸 Searching downloaded music only")
+        } else {
+            updateSearchHint("")
+        }
+        
         val songResults = mutableListOf<SearchResult.SongResult>()
         val albumResults = mutableListOf<SearchResult.AlbumResult>()
 
@@ -325,7 +388,17 @@ class SearchFragment : Fragment(R.layout.fragment_search) {
         searchResults.addAll(songResults)
         searchResults.addAll(albumResults)
 
-        searchResultsAdapter.updateResults(searchResults)
+        // Handle empty results with appropriate messages
+        if (searchResults.isEmpty()) {
+            handleEmptySearchResults(query)
+        } else {
+            searchResultsAdapter.updateResults(searchResults)
+        }
+    }
+    
+    private fun handleEmptySearchResults(query: String) {
+        // Show empty results to adapter without toasts
+        searchResultsAdapter.updateResults(emptyList())
     }
     
     private fun calculateMatchScore(query: String, target: String): Int {
@@ -556,10 +629,34 @@ class SearchResultsAdapter(
         }
         
         private fun loadAlbumArtwork(song: Song) {
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
+            val context = binding.root.context
+            val isOfflineMode = OfflineModeManager.isOfflineMode()
             val authHeader = ApiClient.getAuthHeader()
             
-            if (authHeader != null) {
+            // Try offline artwork first if in offline mode or no auth
+            if (isOfflineMode || authHeader == null) {
+                try {
+                    val downloadManager = DownloadManager.getInstance(context)
+                    val artworkFile = downloadManager.getArtworkFile(song)
+                    
+                    if (artworkFile.exists() && artworkFile.length() > 0) {
+                        // Load local artwork file
+                        Glide.with(context)
+                            .load(artworkFile)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
+                            .placeholder(R.drawable.ic_music_note)
+                            .error(R.drawable.ic_music_note)
+                            .into(binding.albumArtwork)
+                        return
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("SearchFragment", "Error loading offline artwork for ${song.title}", e)
+                }
+            }
+            
+            // Fallback to server artwork if online and authenticated
+            if (!isOfflineMode && authHeader != null) {
+                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
                 val glideUrl = GlideUrl(
                     artworkUrl, 
                     LazyHeaders.Builder()
@@ -567,13 +664,14 @@ class SearchResultsAdapter(
                         .build()
                 )
                 
-                Glide.with(binding.root.context)
+                Glide.with(context)
                     .load(glideUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .placeholder(R.drawable.ic_music_note)
                     .error(R.drawable.ic_music_note)
                     .into(binding.albumArtwork)
             } else {
+                // Fallback to default icon
                 binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
             }
         }
@@ -613,10 +711,34 @@ class SearchResultsAdapter(
         private fun loadAlbumArtwork(album: Album) {
             if (album.songs.isNotEmpty()) {
                 val firstSong = album.songs.first()
-                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${firstSong.id}"
+                val context = binding.root.context
+                val isOfflineMode = OfflineModeManager.isOfflineMode()
                 val authHeader = ApiClient.getAuthHeader()
                 
-                if (authHeader != null) {
+                // Try offline artwork first if in offline mode or no auth
+                if (isOfflineMode || authHeader == null) {
+                    try {
+                        val downloadManager = DownloadManager.getInstance(context)
+                        val artworkFile = downloadManager.getArtworkFile(firstSong)
+                        
+                        if (artworkFile.exists() && artworkFile.length() > 0) {
+                            // Load local artwork file
+                            Glide.with(context)
+                                .load(artworkFile)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_folder)
+                                .error(R.drawable.ic_folder)
+                                .into(binding.albumArtwork)
+                            return
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("SearchFragment", "Error loading offline album artwork", e)
+                    }
+                }
+                
+                // Fallback to server artwork if online and authenticated
+                if (!isOfflineMode && authHeader != null) {
+                    val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${firstSong.id}"
                     val glideUrl = GlideUrl(
                         artworkUrl, 
                         LazyHeaders.Builder()
@@ -631,6 +753,7 @@ class SearchResultsAdapter(
                         .error(R.drawable.ic_folder)
                         .into(binding.albumArtwork)
                 } else {
+                    // Fallback to default icon
                     binding.albumArtwork.setImageResource(R.drawable.ic_folder)
                 }
             } else {
@@ -645,6 +768,7 @@ class SearchResultsAdapter(
 // Adapter for recently played songs from search
 class RecentlyPlayedAdapter(
     private val allAlbums: () -> List<Album>, // Function to get current albums
+    private val allSongs: () -> List<Song>, // Function to get current songs
     private val onItemClick: (SearchPlayHistory) -> Unit,
     private val onItemLongClick: (SearchPlayHistory) -> Unit,
     private val onRemoveClick: (SearchPlayHistory) -> Unit
@@ -686,10 +810,46 @@ class RecentlyPlayedAdapter(
             }
             
             // Try to load artwork, fall back to default icon
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/$artworkSongId"
+            val context = binding.root.context
+            val isOfflineMode = OfflineModeManager.isOfflineMode()
             val authHeader = ApiClient.getAuthHeader()
             
-            if (authHeader != null) {
+            // Try offline artwork first if in offline mode or no auth
+            if (isOfflineMode || authHeader == null) {
+                try {
+                    // Need to find the actual Song object to use DownloadManager.getArtworkFile()
+                    val song = if (historyItem.songId.startsWith("album_")) {
+                        // For album entries, get the first song from the album
+                        val album = allAlbums().find { it.name == historyItem.albumName }
+                        album?.songs?.firstOrNull()
+                    } else {
+                        // For regular song entries, find the song by ID
+                        allSongs().find { it.id == historyItem.songId }
+                    }
+                    
+                    if (song != null) {
+                        val downloadManager = DownloadManager.getInstance(context)
+                        val artworkFile = downloadManager.getArtworkFile(song)
+                        
+                        if (artworkFile.exists() && artworkFile.length() > 0) {
+                            // Load local artwork file using proper DownloadManager path
+                            Glide.with(context)
+                                .load(artworkFile)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_music_note)
+                                .error(R.drawable.ic_music_note)
+                                .into(binding.albumArtwork)
+                            return
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("SearchFragment", "Error loading offline recently played artwork", e)
+                }
+            }
+            
+            // Fallback to server artwork if online and authenticated
+            if (!isOfflineMode && authHeader != null) {
+                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/$artworkSongId"
                 val glideUrl = GlideUrl(
                     artworkUrl, 
                     LazyHeaders.Builder()
@@ -697,13 +857,14 @@ class RecentlyPlayedAdapter(
                         .build()
                 )
                 
-                Glide.with(binding.root.context)
+                Glide.with(context)
                     .load(glideUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .placeholder(R.drawable.ic_music_note)
                     .error(R.drawable.ic_music_note)
                     .into(binding.albumArtwork)
             } else {
+                // No artwork available - show placeholder
                 binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
             }
             

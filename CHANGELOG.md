@@ -1,31 +1,30 @@
-# BMA App Update Summary (14/06/2025)
+# Major Update Released! 🚀
 
-## ✅ New Features and Improvements:
+## Desktop & CLI Enhancements 🖥️
+**Codebase Restructure:** Both desktop and CLI applications have been completely refactored with a modular architecture. Previously bloated files have been broken down into digestible, maintainable components while preserving full functionality.
 
-- **App Icon:** App now includes an icon.
-- **Streamlined Experience:** Removed unnecessary popups.
-- **State Persistence:** Song playback and queue now persist after closing and reopening the app.
-- **Enhanced Search:** Improved immediate search results; distinguishes clearly between songs and albums and maintains a well-organized recently searched list.
-- **Revamped Library Screen:** Cleaner UI with separate sections for albums, songs, and playlists.
-- **Queue Management:** Significant improvements; fixed shuffle function, resolved bugs involving stuck queues, incorrect song removals, and incorrect shuffle order.
-- **Playlist Support:** Create, delete, rename playlists directly within the app. Playlists have a dedicated library space and support 2x2 grid cover art.
-- **Improved Animations:** Enhanced smoothness throughout the app animations.
-- **Settings Update:**
-  - Connection status clearly displayed.
-  - Backup & Restore playlists (JSON file, still under refinement).
-  - Planned offline song download functionality (currently not implemented).
-- **Notification Controls:** Added notification system to control playback directly from the notification shade and lockscreen.
+**Redesigned Interface:** The desktop app features a fresh, modern UI that's much more polished than the previous version. ✨
 
-## 🛠️ Known Issues (Pending Fixes):
+**Enhanced Stability:** Significantly improved error handling prevents crashes, especially when Tailscale isn't running. Fixed critical issues with Tailscale detection on Linux systems. 🛠️
 
-- Persistent \"currently playing\" display upon disconnection/reconnection.
-- Crashes when switching servers or if Tailscale isn't connected.
-- Intermittent disappearance of 2x2 playlist grid.
-- Multiple bugs in desktop applications and CLI version.
+## Android App Overhaul 📱
+I've essentially built a complete music player from the ground up—one I'd actually want to use daily.
 
-## 🚀 Upcoming Features:
+**New Features:**
+- **Streaming Stats** – Track your listening time with real-time minute counters 📊
+- **Library Downloads** – Download your entire music collection to your device (currently stored securely within the app) ⬇️
+- **True Offline Mode** – Seamlessly switch to offline playback when disconnected. The app intelligently detects connectivity issues and prompts you to enter offline mode, with full search functionality preserved 📡
+- **Smart Caching** – Recently played tracks load faster with intelligent caching ⚡
+- **Improved Backups** – Properly restores streaming stats and playlists 💾
 
-- Song caching and download support.
-- Ability to customize playlist cover art.
-- Community-driven feature development.
+**Reliability Improvements:**
+- Robust error handling eliminates most crash scenarios
+- Clear, specific error messages help you understand exactly what's happening
+- Graceful handling of connection drops without requiring app restarts 🔧
 
+## Known Issues & Upcoming Fixes:
+- Working on allowing downloads to custom device folders
+- Addressing rare crash scenarios in specific edge cases  
+- Implementing proper state preservation when switching between online/offline modes 🔄
+
+These improvements should make BMA significantly more stable and user-friendly across all platforms! 🎵

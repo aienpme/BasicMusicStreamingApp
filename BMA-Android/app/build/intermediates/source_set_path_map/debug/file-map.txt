@@ -38,10 +38,10 @@ com.bma.android.app-coordinatorlayout-1.1.0-36 /Users/alex/.gradle/caches/transf
 com.bma.android.app-jetified-exoplayer-ui-2.19.1-37 /Users/alex/.gradle/caches/transforms-3/f3c51e3d1e4221273f4a1b8f3ea30701/transformed/jetified-exoplayer-ui-2.19.1/res
 com.bma.android.app-jetified-emoji2-1.2.0-38 /Users/alex/.gradle/caches/transforms-3/f4638e14170ce58a135ac45eecf1ff24/transformed/jetified-emoji2-1.2.0/res
 com.bma.android.app-jetified-customview-poolingcontainer-1.0.0-39 /Users/alex/.gradle/caches/transforms-3/f4693f0b037462e59fba6fb8f6e5989a/transformed/jetified-customview-poolingcontainer-1.0.0/res
-com.bma.android.app-pngs-40 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/build/generated/res/pngs/debug
-com.bma.android.app-resValues-41 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/build/generated/res/resValues/debug
-com.bma.android.app-packageDebugResources-42 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
-com.bma.android.app-packageDebugResources-43 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
-com.bma.android.app-merged_res-44 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/build/intermediates/merged_res/debug
-com.bma.android.app-debug-45 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/debug/res
-com.bma.android.app-main-46 /Users/alex/Documents/Spotify Type App/BasicStreamingApp/BMA-Android/app/src/main/res
+com.bma.android.app-pngs-40 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/generated/res/pngs/debug
+com.bma.android.app-resValues-41 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/generated/res/resValues/debug
+com.bma.android.app-packageDebugResources-42 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debug/packageDebugResources/merged.dir
+com.bma.android.app-packageDebugResources-43 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debug/packageDebugResources/stripped.dir
+com.bma.android.app-merged_res-44 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/merged_res/debug
+com.bma.android.app-debug-45 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/debug/res
+com.bma.android.app-main-46 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res

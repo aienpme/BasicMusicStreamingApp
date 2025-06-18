@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -17,117 +18,61 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.bma.android.api.ApiClient
 import com.bma.android.databinding.ActivityMainBinding
+import com.bma.android.main.components.*
+import com.bma.android.models.Album
+import com.bma.android.models.Playlist
 import com.bma.android.models.Song
-import com.bma.android.storage.PlaybackStateManager
+import com.bma.android.service.components.ListenerManager
+import com.bma.android.storage.OfflineModeManager
+import com.bma.android.ui.disconnection.DisconnectionFragment
 import com.bma.android.ui.library.LibraryFragment
 import com.bma.android.ui.search.SearchFragment
 import com.bma.android.ui.settings.SettingsFragment
-import com.bma.android.ui.disconnection.DisconnectionFragment
-import com.bma.android.ui.album.AlbumDetailFragment
-import com.bma.android.ui.playlist.PlaylistDetailFragment
-import com.bma.android.models.Album
-import com.bma.android.models.Playlist
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.model.GlideUrl
-import com.bumptech.glide.load.model.LazyHeaders
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
+class MainActivity : AppCompatActivity(), 
+    ListenerManager.MusicServiceListener,
+    MusicServiceManager.MusicServiceCallback,
+    MiniPlayerController.MiniPlayerCallback,
+    ConnectionManager.ConnectionCallback,
+    FragmentNavigationManager.NavigationCallback,
+    DialogManager.DialogCallback {
 
     private lateinit var binding: ActivityMainBinding
-
+    
+    // Component managers
+    private lateinit var musicServiceManager: MusicServiceManager
+    private lateinit var miniPlayerController: MiniPlayerController
+    private lateinit var connectionManager: ConnectionManager
+    private lateinit var fragmentNavigationManager: FragmentNavigationManager
+    private lateinit var dialogManager: DialogManager
+    private lateinit var permissionManager: PermissionManager
+    
+    // Fragments
     private val libraryFragment = LibraryFragment()
     private val searchFragment = SearchFragment()
     private val settingsFragment = SettingsFragment()
     private val disconnectionFragment = DisconnectionFragment()
     
-    // Album detail overlay
-    private var albumDetailFragment: AlbumDetailFragment? = null
-    private var playlistDetailFragment: PlaylistDetailFragment? = null
-    private var albumTransitionAnimator: AlbumTransitionAnimator? = null
-    private var navigationTransitionAnimator: NavigationTransitionAnimator? = null
-    private var currentDisplayMode = DisplayMode.NORMAL
-    private var preventMiniPlayerUpdates = false
-    
-    // Navigation state tracking
-    private var currentFragmentId = R.id.navigation_library
-    private var currentFragment: Fragment? = null
-    
-    enum class DisplayMode {
-        NORMAL,
-        ALBUM_DETAIL,
-        PLAYLIST_DETAIL
-    }
-    
-    // Music service
-    private var musicService: MusicService? = null
-    private var serviceBound = false
-    
-    // Auth failure handling
+    // State flags
     private var isHandlingAuthFailure = false
-    
-    // Health check timer
-    private var healthCheckHandler: Handler? = null
-    private var healthCheckRunnable: Runnable? = null
+    private var preventMiniPlayerUpdates = false
     private var isInNormalMode = false
     
-    // Notification permission request
-    private val notificationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            android.util.Log.d("MainActivity", "Notification permission granted")
+    // Setup activity result launcher for handling QR scanning results
+    private val setupActivityLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        Log.d("MainActivity", "Setup activity result: ${result.resultCode}")
+        
+        if (result.resultCode == RESULT_OK) {
+            Log.d("MainActivity", "Setup completed successfully, reloading connection details...")
+            isHandlingAuthFailure = false
+            loadConnectionDetails()
         } else {
-            android.util.Log.w("MainActivity", "Notification permission denied")
-        }
-    }
-    
-    // Service connection
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            android.util.Log.d("MainActivity", "=== SERVICE CONNECTED ===")
-            android.util.Log.d("MainActivity", "Service component: ${name?.className}")
-            val binder = service as MusicService.MusicBinder
-            musicService = binder.getService()
-            serviceBound = true
-            musicService?.addListener(this@MainActivity)
-            android.util.Log.d("MainActivity", "Service bound successfully, listener added")
-            
-            // Try to restore playback state if no current song is playing
-            val currentSong = musicService?.getCurrentSong()
-            val isPlaying = musicService?.isPlaying() ?: false
-            android.util.Log.d("MainActivity", "Current service state - Song: ${currentSong?.title}, Playing: $isPlaying")
-            
-            // If no song is currently playing, try to restore from saved state
-            if (currentSong == null) {
-                val playbackStateManager = PlaybackStateManager.getInstance(this@MainActivity)
-                if (playbackStateManager.hasValidPlaybackState()) {
-                    android.util.Log.d("MainActivity", "Attempting to restore playback state...")
-                    musicService?.restorePlaybackState()
-                }
-            }
-            
-            updateMiniPlayer()
-        }
-
-        override fun onServiceDisconnected(name: ComponentName?) {
-            android.util.Log.w("MainActivity", "=== SERVICE DISCONNECTED ===")
-            android.util.Log.w("MainActivity", "Service component: ${name?.className}")
-            serviceBound = false
-            // Note: Don't call removeListener here since service is already disconnected
-            musicService = null
-            
-            // Hide mini-player when service disconnects
-            binding.miniPlayer.root.isVisible = false
-            
-            // Try to rebind after a short delay
-            android.util.Log.d("MainActivity", "Attempting to rebind to service...")
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (!serviceBound) {
-                    bindMusicService()
-                }
-            }, 1000)
+            Log.d("MainActivity", "Setup was cancelled or failed")
+            isHandlingAuthFailure = false
+            showDisconnectionScreen()
         }
     }
 
@@ -136,43 +81,58 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        android.util.Log.d("MainActivity", "=== ONCREATE STARTED ===")
+        Log.d("MainActivity", "=== ONCREATE STARTED ===")
         
-        // Request notification permission on Android 13+ (API 33+)
-        requestNotificationPermission()
+        // Initialize components
+        initializeComponents()
         
-        // Load saved credentials so the app can auto-connect
+        // Initialize offline mode manager
+        OfflineModeManager.initialize(this)
+        
+        // Request notification permission
+        permissionManager.requestNotificationPermission()
+        
+        // Setup UI components
+        setupBottomNavigation()
+        
+        // Load saved credentials and check connection
         loadConnectionDetails()
         
-        // Setup mini-player
-        setupMiniPlayer()
+        // Bind to music service
+        Log.d("MainActivity", "About to bind music service...")
+        musicServiceManager.bindMusicService()
         
-        // Initialize album transition animator - use fragment container instead of root
-        albumTransitionAnimator = AlbumTransitionAnimator(binding.fragmentContainer)
+        Log.d("MainActivity", "=== ONCREATE COMPLETED ===")
+    }
+    
+    private fun initializeComponents() {
+        // Initialize component managers
+        musicServiceManager = MusicServiceManager(this, this)
+        miniPlayerController = MiniPlayerController(this, binding.miniPlayer, lifecycleScope, this)
+        connectionManager = ConnectionManager(this, lifecycleScope, this)
+        fragmentNavigationManager = FragmentNavigationManager(supportFragmentManager, binding.fragmentContainer, this)
+        dialogManager = DialogManager(this, this)
+        permissionManager = PermissionManager(this)
         
-        // Initialize navigation transition animator
-        navigationTransitionAnimator = NavigationTransitionAnimator(binding.fragmentContainer)
-
+        // Setup mini player
+        miniPlayerController.setup()
+    }
+    
+    private fun setupBottomNavigation() {
         binding.bottomNavView.setOnItemSelectedListener { item ->
             // Skip animation if we're in a detail mode (album/playlist)
-            if (currentDisplayMode != DisplayMode.NORMAL) {
+            if (fragmentNavigationManager.currentDisplayMode != FragmentNavigationManager.DisplayMode.NORMAL) {
                 when (item.itemId) {
                     R.id.navigation_library -> {
-                        loadFragment(libraryFragment)
-                        currentFragmentId = item.itemId
-                        currentFragment = libraryFragment
+                        fragmentNavigationManager.loadFragment(libraryFragment, item.itemId)
                         true
                     }   
                     R.id.navigation_search -> {
-                        loadFragment(searchFragment)
-                        currentFragmentId = item.itemId
-                        currentFragment = searchFragment
+                        fragmentNavigationManager.loadFragment(searchFragment, item.itemId)
                         true
                     }
                     R.id.navigation_settings -> {
-                        loadFragment(settingsFragment)
-                        currentFragmentId = item.itemId
-                        currentFragment = settingsFragment
+                        fragmentNavigationManager.loadFragment(settingsFragment, item.itemId)
                         true
                     }
                     else -> false
@@ -181,89 +141,44 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
                 // Use animated transitions for normal navigation
                 when (item.itemId) {
                     R.id.navigation_library -> {
-                        navigateToFragmentWithAnimation(libraryFragment, item.itemId)
+                        fragmentNavigationManager.navigateToFragmentWithAnimation(libraryFragment, item.itemId)
                         true
                     }   
                     R.id.navigation_search -> {
-                        navigateToFragmentWithAnimation(searchFragment, item.itemId)
+                        fragmentNavigationManager.navigateToFragmentWithAnimation(searchFragment, item.itemId)
                         true
                     }
                     R.id.navigation_settings -> {
-                        navigateToFragmentWithAnimation(settingsFragment, item.itemId)
+                        fragmentNavigationManager.navigateToFragmentWithAnimation(settingsFragment, item.itemId)
                         true
                     }
                     else -> false
                 }
             }
         }
-
-        // Initial fragment loading will be handled by connection check
-        // Don't load fragments until we know connection status
-        
-        // Bind to music service
-        android.util.Log.d("MainActivity", "About to bind music service...")
-        bindMusicService()
-        android.util.Log.d("MainActivity", "=== ONCREATE COMPLETED ===")
     }
     
     override fun onDestroy() {
-        android.util.Log.d("MainActivity", "=== ONDESTROY CALLED ===")
-        android.util.Log.d("MainActivity", "Service bound: $serviceBound")
+        Log.d("MainActivity", "=== ONDESTROY CALLED ===")
         super.onDestroy()
         
         // Stop health check timer
-        stopHealthCheckTimer()
+        connectionManager.stopHealthCheckTimer()
         
-        if (serviceBound) {
-            android.util.Log.d("MainActivity", "Unbinding from service...")
-            musicService?.removeListener(this@MainActivity)
-            unbindService(serviceConnection)
-            serviceBound = false
-            android.util.Log.d("MainActivity", "Service unbound")
-        } else {
-            android.util.Log.d("MainActivity", "Service was not bound, no unbinding needed")
-        }
-        android.util.Log.d("MainActivity", "=== ONDESTROY COMPLETED ===")
+        // Unbind from music service
+        musicServiceManager.unbindMusicService(this)
+        
+        Log.d("MainActivity", "=== ONDESTROY COMPLETED ===")
     }
     
     override fun onPause() {
         super.onPause()
-        // Pause health checks when app goes to background
-        if (isInNormalMode) {
-            stopHealthCheckTimer()
-            android.util.Log.d("MainActivity", "Health checks paused (app going to background)")
-        }
+        connectionManager.pauseHealthCheck()
     }
     
     override fun onResume() {
         super.onResume()
-        // Resume health checks when app comes to foreground
-        if (isInNormalMode) {
-            startHealthCheckTimer()
-            android.util.Log.d("MainActivity", "Health checks resumed (app coming to foreground)")
-        }
-    }
-
-    private fun loadFragment(fragment: Fragment) {
-        supportFragmentManager.beginTransaction()
-            .replace(R.id.fragment_container, fragment)
-            .commit()
-    }
-
-    private fun navigateToFragmentWithAnimation(targetFragment: Fragment, targetFragmentId: Int) {
-        // Don't animate if we're already on this fragment or if animation is in progress
-        if (currentFragmentId == targetFragmentId || navigationTransitionAnimator?.isCurrentlyAnimating() == true) {
-            return
-        }
-        
-        navigationTransitionAnimator?.transitionToFragment(
-            fragmentContainer = binding.fragmentContainer
-        ) {
-            // This callback executes during the transition (at the black screen)
-            loadFragment(targetFragment)
-            currentFragmentId = targetFragmentId
-            currentFragment = targetFragment
-        }
+        connectionManager.resumeHealthCheck()
     }
 
     private fun loadConnectionDetails() {
@@ -286,42 +201,19 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
         }
         
         // Check connection status
-        lifecycleScope.launch {
-            when (ApiClient.checkConnection(this@MainActivity)) {
-                ApiClient.ConnectionStatus.CONNECTED -> {
-                    runOnUiThread {
-                        setupNormalMode()
-                    }
-                }
-                ApiClient.ConnectionStatus.DISCONNECTED -> {
-                    runOnUiThread {
-                        showDisconnectionScreen()
-                    }
-                }
-                ApiClient.ConnectionStatus.TOKEN_EXPIRED -> {
-                    runOnUiThread {
-                        showDisconnectionScreen()
-                    }
-                }
-                ApiClient.ConnectionStatus.NO_CREDENTIALS -> {
-                    runOnUiThread {
-                        redirectToSetup()
-                    }
-                }
-            }
-        }
+        connectionManager.checkConnection()
     }
     
     private fun handleAuthenticationFailure() {
         if (isHandlingAuthFailure) {
-            android.util.Log.d("MainActivity", "Already handling auth failure, ignoring duplicate call")
+            Log.d("MainActivity", "Already handling auth failure, ignoring duplicate call")
             return
         }
         
         isHandlingAuthFailure = true
-        android.util.Log.e("MainActivity", "Authentication failure detected, clearing stored credentials")
+        Log.e("MainActivity", "Authentication failure detected, clearing stored credentials")
         
-        // Clear stored credentials to prevent loop
+        // Clear stored credentials
         val prefs = getSharedPreferences("BMA", Context.MODE_PRIVATE)
         prefs.edit()
             .remove("auth_token")
@@ -332,10 +224,9 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
         ApiClient.setAuthToken(null)
         
         // Redirect to setup
+        Log.d("MainActivity", "Launching setup for authentication failure")
         val intent = Intent(this, com.bma.android.setup.SetupActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
+        setupActivityLauncher.launch(intent)
     }
     
     private fun setupNormalMode() {
@@ -345,31 +236,76 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
         
         // Check if there's a specific tab to select from intent
         val selectedTab = intent.getStringExtra("selected_tab")
-        when (selectedTab) {
-            "search" -> {
-                binding.bottomNavView.selectedItemId = R.id.navigation_search
-                loadFragment(searchFragment)
-                currentFragmentId = R.id.navigation_search
-                currentFragment = searchFragment
-            }
-            "settings" -> {
-                binding.bottomNavView.selectedItemId = R.id.navigation_settings
-                loadFragment(settingsFragment)
-                currentFragmentId = R.id.navigation_settings
-                currentFragment = settingsFragment
-            }
-            else -> {
-                // Default to library
-                binding.bottomNavView.selectedItemId = R.id.navigation_library
-                loadFragment(libraryFragment)
-                currentFragmentId = R.id.navigation_library
-                currentFragment = libraryFragment
-            }
+        val (fragment, fragmentId) = when (selectedTab) {
+            "search" -> searchFragment to R.id.navigation_search
+            "settings" -> settingsFragment to R.id.navigation_settings
+            else -> libraryFragment to R.id.navigation_library
         }
+        
+        binding.bottomNavView.selectedItemId = fragmentId
+        fragmentNavigationManager.loadFragment(fragment, fragmentId)
         
         // Start health check timer
         isInNormalMode = true
-        startHealthCheckTimer()
+        connectionManager.startHealthCheckTimer()
+    }
+    
+    private fun setupOfflineMode() {
+        Log.d("MainActivity", "Setting up offline mode UI")
+        
+        // Show normal UI with offline mode enabled
+        binding.bottomNavView.isVisible = true
+        binding.fragmentContainer.isVisible = true
+        
+        // Don't start health check timer in offline mode
+        isInNormalMode = false
+        
+        // Check if there's a specific tab to select from intent
+        val selectedTab = intent.getStringExtra("selected_tab")
+        val (fragment, fragmentId) = when (selectedTab) {
+            "search" -> searchFragment to R.id.navigation_search
+            "settings" -> settingsFragment to R.id.navigation_settings
+            else -> libraryFragment to R.id.navigation_library
+        }
+        
+        binding.bottomNavView.selectedItemId = fragmentId
+        fragmentNavigationManager.loadFragment(fragment, fragmentId)
+        
+        // Wait for fragment to be loaded, then notify about offline mode
+        binding.root.post {
+            notifyFragmentsOfflineMode()
+            
+            // Add a short delay to check if music is already playing
+            // This handles the case where music was started before MainActivity was ready
+            Handler(Looper.getMainLooper()).postDelayed({
+                Log.d("MainActivity", "Checking for existing playback in offline mode...")
+                updateMiniPlayer()
+            }, 500)
+        }
+    }
+    
+    private fun notifyFragmentsOfflineMode() {
+        Log.d("MainActivity", "Notifying fragments about offline mode")
+        
+        try {
+            // Notify all fragments that we're now in offline mode
+            if (libraryFragment.isAdded && libraryFragment.view != null) {
+                (libraryFragment as? OfflineModeAware)?.onOfflineModeChanged(true)
+                Log.d("MainActivity", "Notified LibraryFragment about offline mode")
+            }
+            
+            if (searchFragment.isAdded && searchFragment.view != null) {
+                (searchFragment as? OfflineModeAware)?.onOfflineModeChanged(true)
+                Log.d("MainActivity", "Notified SearchFragment about offline mode")
+            }
+            
+            if (settingsFragment.isAdded && settingsFragment.view != null) {
+                (settingsFragment as? OfflineModeAware)?.onOfflineModeChanged(true)
+                Log.d("MainActivity", "Notified SettingsFragment about offline mode")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error notifying fragments about offline mode", e)
+        }
     }
     
     private fun showDisconnectionScreen() {
@@ -377,239 +313,164 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
         binding.bottomNavView.isVisible = false
         binding.fragmentContainer.isVisible = true
         
-        // Stop health check timer since we're no longer in normal mode
+        // Stop health check timer
         isInNormalMode = false
-        stopHealthCheckTimer()
+        connectionManager.stopHealthCheckTimer()
         
         // Show disconnection fragment
-        loadFragment(disconnectionFragment)
+        fragmentNavigationManager.loadFragment(disconnectionFragment)
     }
     
     private fun redirectToSetup() {
+        Log.d("MainActivity", "Redirecting to setup activity")
         val intent = Intent(this, com.bma.android.setup.SetupActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
+        setupActivityLauncher.launch(intent)
     }
     
-    private fun startHealthCheckTimer() {
-        stopHealthCheckTimer() // Stop any existing timer
-        
-        healthCheckHandler = Handler(Looper.getMainLooper())
-        healthCheckRunnable = object : Runnable {
-            override fun run() {
-                performHealthCheck()
-                // Schedule next check in 30 seconds if still in normal mode
-                if (isInNormalMode && healthCheckHandler != null) {
-                    healthCheckHandler?.postDelayed(this, 30000) // 30 seconds
-                }
-            }
-        }
-        
-        // Start first check after 30 seconds
-        healthCheckHandler?.postDelayed(healthCheckRunnable!!, 30000)
-        android.util.Log.d("MainActivity", "Health check timer started")
-    }
-    
-    private fun stopHealthCheckTimer() {
-        healthCheckHandler?.removeCallbacks(healthCheckRunnable ?: return)
-        healthCheckHandler = null
-        healthCheckRunnable = null
-        android.util.Log.d("MainActivity", "Health check timer stopped")
-    }
-    
-    private fun performHealthCheck() {
-        android.util.Log.d("MainActivity", "Performing health check...")
+    private fun handleConnectionLost() {
+        Log.d("MainActivity", "Handling connection lost - checking if offline mode should be suggested")
         
         lifecycleScope.launch {
-            try {
-                when (ApiClient.checkConnection(this@MainActivity)) {
-                    ApiClient.ConnectionStatus.CONNECTED -> {
-                        android.util.Log.d("MainActivity", "Health check: Still connected")
-                        // All good, continue
-                    }
-                    ApiClient.ConnectionStatus.DISCONNECTED,
-                    ApiClient.ConnectionStatus.TOKEN_EXPIRED -> {
-                        android.util.Log.w("MainActivity", "Health check: Server disconnected, showing disconnect screen")
-                        runOnUiThread {
-                            showDisconnectionScreen()
-                        }
-                    }
-                    ApiClient.ConnectionStatus.NO_CREDENTIALS -> {
-                        android.util.Log.w("MainActivity", "Health check: No credentials, redirecting to setup")
-                        runOnUiThread {
-                            redirectToSetup()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Health check failed", e)
-                // On exception, assume disconnected
-                runOnUiThread {
+            if (OfflineModeManager.shouldSuggestOfflineMode(this@MainActivity)) {
+                dialogManager.showConnectionLostDialog()
+            } else {
+                showDisconnectionScreen()
+            }
+        }
+    }
+    
+    // MusicServiceManager.MusicServiceCallback
+    override fun onServiceConnected(service: MusicService) {
+        musicServiceManager.addListener(this)
+        updateMiniPlayer()
+        
+        // Explicitly check for existing playback in both online and offline modes
+        service.getCurrentSong()?.let { song ->
+            Log.d("MainActivity", "Found current song when service connected: ${song.title}")
+            // Force immediate mini player update
+            miniPlayerController.update()
+        }
+    }
+    
+    override fun onServiceDisconnected() {
+        miniPlayerController.hide()
+    }
+    
+    // MiniPlayerController.MiniPlayerCallback
+    override fun getMusicService(): MusicService? = musicServiceManager.getMusicService()
+    
+    // ConnectionManager.ConnectionCallback
+    override fun onConnected() {
+        runOnUiThread {
+            if (OfflineModeManager.isOfflineMode()) {
+                setupOfflineMode()
+            } else {
+                setupNormalMode()
+            }
+        }
+    }
+    
+    override fun onDisconnected() {
+        runOnUiThread {
+            lifecycleScope.launch {
+                if (OfflineModeManager.shouldSuggestOfflineMode(this@MainActivity)) {
+                    dialogManager.showOfflineModeOption()
+                } else {
                     showDisconnectionScreen()
                 }
             }
         }
     }
     
-    private fun requestNotificationPermission() {
-        // Only request permission on Android 13+ (API 33+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            when {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) == PackageManager.PERMISSION_GRANTED -> {
-                    // Permission already granted
-                    android.util.Log.d("MainActivity", "Notification permission already granted")
-                }
-                else -> {
-                    // Request permission
-                    android.util.Log.d("MainActivity", "Requesting notification permission")
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }
-        } else {
-            // On Android 12 and below, notification permission is granted by default
-            android.util.Log.d("MainActivity", "Notification permission not required on Android < 13")
+    override fun onTokenExpired() {
+        runOnUiThread {
+            showDisconnectionScreen()
         }
     }
     
-    private fun bindMusicService() {
-        android.util.Log.d("MainActivity", "=== BINDING TO MUSIC SERVICE ===")
-        val intent = Intent(this, MusicService::class.java)
-        android.util.Log.d("MainActivity", "Starting service...")
-        val serviceStartResult = startService(intent) // Start the service first
-        android.util.Log.d("MainActivity", "Service start result: $serviceStartResult")
-        android.util.Log.d("MainActivity", "Attempting to bind service...")
-        val bindResult = bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-        android.util.Log.d("MainActivity", "Bind service result: $bindResult")
-    }
-    
-    private fun setupMiniPlayer() {
-        // Click mini-player to open PlayerActivity
-        binding.miniPlayer.root.setOnClickListener {
-            musicService?.getCurrentSong()?.let {
-                val intent = Intent(this, PlayerActivity::class.java)
-                startActivity(intent)
-            }
-        }
-        
-        // Mini-player controls
-        binding.miniPlayer.miniPlayerPlayPause.setOnClickListener {
-            musicService?.let { service ->
-                if (service.isPlaying()) {
-                    service.pause()
-                } else {
-                    service.play()
-                }
-            }
-        }
-        
-        binding.miniPlayer.miniPlayerNext.setOnClickListener {
-            musicService?.skipToNext()
-        }
-        
-        binding.miniPlayer.miniPlayerPrevious.setOnClickListener {
-            musicService?.skipToPrevious()
+    override fun onNoCredentials() {
+        runOnUiThread {
+            redirectToSetup()
         }
     }
     
-    private fun updateMiniPlayer() {
-        // Prevent updates during album transition animations
-        if (preventMiniPlayerUpdates) {
-            return
-        }
-        
-        musicService?.let { service ->
-            val currentSong = service.getCurrentSong()
-            val isPlaying = service.isPlaying()
-            
-            if (currentSong != null) {
-                // Show mini-player
-                binding.miniPlayer.root.isVisible = true
-                
-                // Update song info
-                binding.miniPlayer.miniPlayerTitle.text = currentSong.title
-                binding.miniPlayer.miniPlayerArtist.text = currentSong.artist.ifEmpty { "Unknown Artist" }
-                
-                // Update play/pause button
-                val playPauseIcon = if (isPlaying) R.drawable.ic_pause_circle else R.drawable.ic_play_circle
-                binding.miniPlayer.miniPlayerPlayPause.setImageResource(playPauseIcon)
-                
-                // Load album artwork
-                loadMiniPlayerArtwork(currentSong)
-                
-                // Update progress
-                val currentPos = service.getCurrentPosition()
-                val duration = service.getDuration()
-                val progress = if (duration > 0) {
-                    (currentPos * 100) / duration
-                } else 0
-                binding.miniPlayer.miniPlayerProgress.progress = progress
-                
-            } else {
-                // Hide mini-player
-                binding.miniPlayer.root.isVisible = false
-            }
-        } ?: run {
-            // Hide mini-player when no service
-            binding.miniPlayer.root.isVisible = false
+    override fun onConnectionTimeout() {
+        runOnUiThread {
+            dialogManager.showConnectionTimeoutDialog()
         }
     }
     
-    private fun loadMiniPlayerArtwork(song: Song) {
-        val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-        val authHeader = ApiClient.getAuthHeader()
-        
-        if (authHeader != null) {
-            val glideUrl = GlideUrl(
-                artworkUrl, 
-                LazyHeaders.Builder()
-                    .addHeader("Authorization", authHeader)
-                    .build()
-            )
-            
-            Glide.with(this)
-                .load(glideUrl)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.ic_music_note)
-                .error(R.drawable.ic_music_note)
-                .into(binding.miniPlayer.miniPlayerArtwork)
-        } else {
-            binding.miniPlayer.miniPlayerArtwork.setImageResource(R.drawable.ic_music_note)
+    override fun onConnectionLost() {
+        runOnUiThread {
+            handleConnectionLost()
         }
     }
     
-    // MusicService.MusicServiceListener implementation
+    // FragmentNavigationManager.NavigationCallback
+    override fun onAlbumDetailBackPressed() {
+        preventMiniPlayerUpdates = false
+    }
+    
+    override fun onPlaylistDetailBackPressed() {
+        preventMiniPlayerUpdates = false
+    }
+    
+    // DialogManager.DialogCallback
+    override fun onOfflineModeSelected() {
+        OfflineModeManager.enableOfflineMode()
+        setupOfflineMode()
+    }
+    
+    override fun onRetryConnection() {
+        loadConnectionDetails()
+    }
+    
+    override fun onDisconnectSelected() {
+        showDisconnectionScreen()
+    }
+    
+    override fun onBypassConnection() {
+        Log.d("MainActivity", "User chose to bypass connection check")
+        setupNormalMode()
+    }
+    
+    // Music service listener methods
     override fun onPlaybackStateChanged(state: Int) {
-        android.util.Log.d("MainActivity", "=== PLAYBACK STATE CHANGED ===")
-        android.util.Log.d("MainActivity", "New state: $state")
-        android.util.Log.d("MainActivity", "Service bound: $serviceBound, Service: ${musicService != null}")
+        Log.d("MainActivity", "=== PLAYBACK STATE CHANGED ===")
+        Log.d("MainActivity", "New state: $state")
         updateMiniPlayer()
     }
     
     override fun onSongChanged(song: Song?) {
-        android.util.Log.d("MainActivity", "=== SONG CHANGED ===")
-        android.util.Log.d("MainActivity", "New song: ${song?.title} by ${song?.artist}")
-        android.util.Log.d("MainActivity", "Service bound: $serviceBound, Service: ${musicService != null}")
+        Log.d("MainActivity", "=== SONG CHANGED ===")
+        Log.d("MainActivity", "New song: ${song?.title} by ${song?.artist}")
         updateMiniPlayer()
     }
     
     override fun onProgressChanged(progress: Int, duration: Int) {
-        android.util.Log.v("MainActivity", "Progress changed: $progress/$duration")
-        if (duration > 0) {
-            val progressPercent = (progress * 100) / duration
-            binding.miniPlayer.miniPlayerProgress.progress = progressPercent
+        Log.v("MainActivity", "Progress changed: $progress/$duration")
+        miniPlayerController.updateProgress(progress, duration)
+    }
+    
+    private fun updateMiniPlayer() {
+        if (!preventMiniPlayerUpdates) {
+            Log.d("MainActivity", "updateMiniPlayer called - preventUpdates: false")
+            val service = musicServiceManager.getMusicService()
+            Log.d("MainActivity", "MusicService available: ${service != null}")
+            service?.let {
+                val currentSong = it.getCurrentSong()
+                Log.d("MainActivity", "Current song: ${currentSong?.title}")
+            }
+            miniPlayerController.update()
+        } else {
+            Log.d("MainActivity", "updateMiniPlayer called - preventUpdates: true")
         }
     }
     
-    fun getMusicService(): MusicService? = musicService
-    
     override fun onBackPressed() {
         // Handle album detail back navigation first
-        if (currentDisplayMode == DisplayMode.ALBUM_DETAIL) {
-            onAlbumDetailBackPressed()
+        if (fragmentNavigationManager.currentDisplayMode == FragmentNavigationManager.DisplayMode.ALBUM_DETAIL) {
+            fragmentNavigationManager.handleAlbumDetailBack(isFinishing, isDestroyed)
             return
         }
         
@@ -619,153 +480,41 @@ class MainActivity : AppCompatActivity(), MusicService.MusicServiceListener {
                 binding.bottomNavView.selectedItemId = R.id.navigation_library
             }
             else -> {
-                // If already on Library or any other state, use default back behavior (exit app)
+                // If already on Library or any other state, use default back behavior
                 super.onBackPressed()
             }
         }
     }
     
-    // Store reference to background fragment to avoid lookups
-    private var backgroundFragment: Fragment? = null
-    
-    // Public method for album clicks from fragments
+    // Public methods for fragments to use
     fun showAlbumDetail(album: Album) {
-        if (albumTransitionAnimator?.isCurrentlyAnimating() == true) {
-            return // Don't start new transitions while animating
-        }
-        
-        // Store reference to current fragment and hide it
-        backgroundFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
-        backgroundFragment?.view?.visibility = android.view.View.INVISIBLE // Use INVISIBLE instead of GONE
-        
-        // Create album detail fragment
-        albumDetailFragment = AlbumDetailFragment.newInstance(album)
-        
-        // Add fragment to container
-        supportFragmentManager.beginTransaction()
-            .add(R.id.fragment_container, albumDetailFragment!!, "album_detail")
-            .commit() // Use commit instead of commitNow for smoother transitions
-        
-        // Wait for fragment to be added then start animation
-        supportFragmentManager.executePendingTransactions()
-        
-        // Start animation after ensuring view is ready
-        albumDetailFragment?.view?.let { fragmentView ->
-            // Ensure the fragment view is fully laid out
-            fragmentView.post {
-                albumTransitionAnimator?.fadeToBlackAndShowContent(fragmentView) {
-                    currentDisplayMode = DisplayMode.ALBUM_DETAIL
-                    // Keep mini-player visible during album detail
-                }
-            }
-        }
-    }
-    
-    // Method called by AlbumDetailFragment when back is pressed
-    fun onAlbumDetailBackPressed() {
-        if (albumTransitionAnimator?.isCurrentlyAnimating() == true) {
-            return // Don't start new transitions while animating
-        }
-        
-        albumDetailFragment?.let { fragment ->
-            // Prevent mini-player updates during back animation
+        if (!fragmentNavigationManager.isAnimating()) {
             preventMiniPlayerUpdates = true
-            
-            // Start reverse animation
-            albumTransitionAnimator?.fadeToBlackAndHideContent(fragment.requireView()) {
-                // Remove fragment after animation completes
-                try {
-                    if (fragment.isAdded && !isFinishing && !isDestroyed) {
-                        supportFragmentManager.beginTransaction()
-                            .remove(fragment)
-                            .commitNowAllowingStateLoss() // Prevent IllegalStateException
-                    }
-                } catch (e: Exception) {
-                    // Ignore any fragment transaction exceptions during cleanup
-                }
-                
-                albumDetailFragment = null
-                currentDisplayMode = DisplayMode.NORMAL
-                
-                // Restore the background fragment visibility using stored reference
-                backgroundFragment?.view?.visibility = android.view.View.VISIBLE
-                backgroundFragment = null
-                
-                // Re-enable mini-player updates after animation completes
-                preventMiniPlayerUpdates = false
-            }
+            fragmentNavigationManager.showAlbumDetail(album)
         }
     }
     
-    // Public method for playlist clicks from fragments
+    fun handleAlbumDetailBackPressed() {
+        fragmentNavigationManager.handleAlbumDetailBack(isFinishing, isDestroyed)
+    }
+    
     fun showPlaylistDetail(playlist: Playlist) {
-        if (albumTransitionAnimator?.isCurrentlyAnimating() == true) {
-            return // Don't start new transitions while animating
-        }
-        
-        // Store reference to current fragment and hide it
-        backgroundFragment = supportFragmentManager.findFragmentById(R.id.fragment_container)
-        backgroundFragment?.view?.visibility = android.view.View.INVISIBLE
-        
-        // Create playlist detail fragment
-        playlistDetailFragment = PlaylistDetailFragment.newInstance(playlist)
-        
-        // Add fragment to container
-        supportFragmentManager.beginTransaction()
-            .add(R.id.fragment_container, playlistDetailFragment!!, "playlist_detail")
-            .commit()
-        
-        // Wait for fragment to be added then start animation
-        supportFragmentManager.executePendingTransactions()
-        
-        // Start animation after ensuring view is ready
-        playlistDetailFragment?.view?.let { fragmentView ->
-            fragmentView.post {
-                albumTransitionAnimator?.fadeToBlackAndShowContent(fragmentView) {
-                    currentDisplayMode = DisplayMode.PLAYLIST_DETAIL
-                }
-            }
-        }
-    }
-    
-    // Method called by PlaylistDetailFragment when back is pressed
-    fun onPlaylistDetailBackPressed() {
-        if (albumTransitionAnimator?.isCurrentlyAnimating() == true) {
-            return // Don't start new transitions while animating
-        }
-        
-        playlistDetailFragment?.let { fragment ->
-            // Prevent mini-player updates during back animation
+        if (!fragmentNavigationManager.isAnimating()) {
             preventMiniPlayerUpdates = true
-            
-            // Start reverse animation
-            albumTransitionAnimator?.fadeToBlackAndHideContent(fragment.requireView()) {
-                // Remove fragment after animation completes
-                try {
-                    if (fragment.isAdded && !isFinishing && !isDestroyed) {
-                        supportFragmentManager.beginTransaction()
-                            .remove(fragment)
-                            .commitNowAllowingStateLoss()
-                    }
-                } catch (e: Exception) {
-                    // Ignore any fragment transaction exceptions during cleanup
-                }
-                
-                playlistDetailFragment = null
-                currentDisplayMode = DisplayMode.NORMAL
-                
-                // Restore the background fragment visibility
-                backgroundFragment?.view?.visibility = android.view.View.VISIBLE
-                backgroundFragment = null
-                
-                // Re-enable mini-player updates after animation completes
-                preventMiniPlayerUpdates = false
-            }
+            fragmentNavigationManager.showPlaylistDetail(playlist)
         }
     }
     
-    // Public method to get all songs for PlaylistDetailFragment
+    fun handlePlaylistDetailBackPressed() {
+        fragmentNavigationManager.handlePlaylistDetailBack(isFinishing, isDestroyed)
+    }
+    
     fun getAllSongs(): List<Song> {
         return libraryFragment.getAllSongs()
+    }
+    
+    // Interface for fragments that need to know about offline mode changes
+    interface OfflineModeAware {
+        fun onOfflineModeChanged(isOffline: Boolean)
     }
 }

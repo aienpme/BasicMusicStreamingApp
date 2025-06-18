@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	
 	"bma-go/internal/models"
@@ -15,12 +16,12 @@ import (
 
 // LibraryStatusBar displays library statistics and connected devices
 type LibraryStatusBar struct {
-	musicLibrary   *models.MusicLibrary
-	serverManager  *server.ServerManager
-	content        *fyne.Container
-	libraryLabel   *widget.Label
-	devicesLabel   *widget.Label
-	scanProgress   *widget.ProgressBar
+	musicLibrary    *models.MusicLibrary
+	serverManager   *server.ServerManager
+	content         *fyne.Container
+	libraryLabel    *widget.Label
+	devicesLabel    *widget.Label
+	scanProgress    *widget.ProgressBar
 }
 
 // NewLibraryStatusBar creates a new library status bar
@@ -38,22 +39,25 @@ func NewLibraryStatusBar(musicLibrary *models.MusicLibrary, serverManager *serve
 // initialize sets up the library status bar components
 func (lsb *LibraryStatusBar) initialize() {
 	// Library statistics label
-	lsb.libraryLabel = widget.NewLabel("No music library loaded")
+	lsb.libraryLabel = widget.NewLabel("No library")
+	lsb.libraryLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	// Connected devices label
-	lsb.devicesLabel = widget.NewLabel("Connected devices: 0")
+	lsb.devicesLabel = widget.NewLabel("No devices")
 
-	// Scanning progress bar (hidden by default)
+	// Scanning progress bar with modern styling
 	lsb.scanProgress = widget.NewProgressBar()
 	lsb.scanProgress.Hide()
 
-	// Layout components horizontally
-	lsb.content = container.NewHBox(
+	// Main status content - simple layout
+	statusContent := container.NewHBox(
 		lsb.libraryLabel,
-		widget.NewSeparator(),
+		layout.NewSpacer(),
 		lsb.devicesLabel,
-		container.NewMax(lsb.scanProgress), // Max container for progress bar
 	)
+	
+	// Simple padded container
+	lsb.content = container.NewPadded(statusContent)
 }
 
 // GetContent returns the library status bar content
@@ -64,15 +68,21 @@ func (lsb *LibraryStatusBar) GetContent() fyne.CanvasObject {
 // UpdateLibraryStats updates the library statistics display
 func (lsb *LibraryStatusBar) UpdateLibraryStats(albumCount, songCount int) {
 	if albumCount == 0 && songCount == 0 {
-		lsb.libraryLabel.SetText("No music library loaded")
+		lsb.libraryLabel.SetText("No library")
 	} else {
-		lsb.libraryLabel.SetText(fmt.Sprintf("Library: %d albums • %d songs", albumCount, songCount))
+		lsb.libraryLabel.SetText(fmt.Sprintf("%d albums • %d songs", albumCount, songCount))
 	}
 }
 
 // UpdateDeviceCount updates the connected devices count
 func (lsb *LibraryStatusBar) UpdateDeviceCount(count int) {
-	lsb.devicesLabel.SetText(fmt.Sprintf("Connected devices: %d", count))
+	if count == 0 {
+		lsb.devicesLabel.SetText("No devices")
+	} else if count == 1 {
+		lsb.devicesLabel.SetText("1 device")
+	} else {
+		lsb.devicesLabel.SetText(fmt.Sprintf("%d devices", count))
+	}
 }
 
 // ShowScanProgress shows the scanning progress bar

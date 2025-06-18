@@ -7,10 +7,13 @@ import com.bma.android.R
 import com.bma.android.api.ApiClient
 import com.bma.android.databinding.ItemSongSelectableBinding
 import com.bma.android.models.Song
+import com.bma.android.storage.DownloadManager
+import com.bma.android.storage.OfflineModeManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import java.io.File
 
 /**
  * Adapter for song selection in playlist creation dialog
@@ -98,10 +101,34 @@ class SongSelectionAdapter(
         }
         
         private fun loadSongArtwork(song: Song) {
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
+            val context = binding.root.context
+            val isOfflineMode = OfflineModeManager.isOfflineMode()
             val authHeader = ApiClient.getAuthHeader()
             
-            if (authHeader != null) {
+            // Try offline artwork first if in offline mode or no auth
+            if (isOfflineMode || authHeader == null) {
+                try {
+                    val downloadManager = DownloadManager.getInstance(context)
+                    val artworkFile = downloadManager.getArtworkFile(song)
+                    
+                    if (artworkFile.exists() && artworkFile.length() > 0) {
+                        // Load local artwork file
+                        Glide.with(context)
+                            .load(artworkFile)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
+                            .placeholder(R.drawable.ic_music_note)
+                            .error(R.drawable.ic_music_note)
+                            .into(binding.songArtwork)
+                        return
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("SongSelectionAdapter", "Error loading offline artwork for ${song.title}", e)
+                }
+            }
+            
+            // Fallback to server artwork if online and authenticated
+            if (!isOfflineMode && authHeader != null) {
+                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
                 val glideUrl = GlideUrl(
                     artworkUrl, 
                     LazyHeaders.Builder()
@@ -109,13 +136,14 @@ class SongSelectionAdapter(
                         .build()
                 )
                 
-                Glide.with(binding.root.context)
+                Glide.with(context)
                     .load(glideUrl)
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
                     .placeholder(R.drawable.ic_music_note)
                     .error(R.drawable.ic_music_note)
                     .into(binding.songArtwork)
             } else {
+                // No artwork available - show placeholder
                 binding.songArtwork.setImageResource(R.drawable.ic_music_note)
             }
         }
