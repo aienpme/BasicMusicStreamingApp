@@ -2,7 +2,7 @@
 
 A secure, self-hosted music streaming solution built in Go (Desktop & CLI) and Kotlin (Android).
 
-YouTube Video Demonstration: 
+YouTube Video Demonstration: https://youtu.be/rI8Mi4uP3KQ
 
 🖥️ What is **BMA**?
 
