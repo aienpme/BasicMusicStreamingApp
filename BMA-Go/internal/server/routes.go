@@ -28,6 +28,7 @@ func (sm *ServerManager) setupRoutes() {
 	
 	// Authenticated endpoints (require Bearer token)
 	sm.router.HandleFunc("/disconnect", authMiddleware.RequireAuth(sm.handleDisconnect)).Methods("POST")
+	sm.router.HandleFunc("/heartbeat", authMiddleware.RequireAuth(sm.handleHeartbeat)).Methods("POST")
 	sm.router.HandleFunc("/songs", authMiddleware.RequireAuth(sm.handleSongs)).Methods("GET")
 	sm.router.HandleFunc("/stream/{songId}", authMiddleware.RequireAuth(sm.handleStream)).Methods("GET")
 	sm.router.HandleFunc("/artwork/{songId}", authMiddleware.RequireAuth(sm.handleArtwork)).Methods("GET")
@@ -157,6 +158,23 @@ func (sm *ServerManager) handleDisconnect(w http.ResponseWriter, r *http.Request
 	}
 	
 	log.Println("✅ Disconnect response sent successfully")
+}
+
+// handleHeartbeat processes device heartbeat pings for connection monitoring
+func (sm *ServerManager) handleHeartbeat(w http.ResponseWriter, r *http.Request) {
+	// Auth middleware already called TrackDeviceConnection(), so device activity is updated
+	
+	response := map[string]interface{}{
+		"status":     "alive",
+		"serverTime": time.Now().Format(time.RFC3339),
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf("❌ Failed to encode heartbeat response: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 // handleSongs returns the list of all songs with album organization

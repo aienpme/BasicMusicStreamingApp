@@ -68,6 +68,9 @@ func NewServerManager() *ServerManager {
 	// Initialize Tailscale detection
 	go sm.checkTailscaleStatus()
 	
+	// Start device monitoring
+	sm.startDeviceMonitor()
+	
 	return sm
 }
 
@@ -305,7 +308,7 @@ func (sm *ServerManager) clearConnectedDevices() {
 
 // cleanupInactiveDevices removes devices that haven't been seen recently
 func (sm *ServerManager) cleanupInactiveDevices() {
-	cutoff := time.Now().Add(-10 * time.Minute) // 10 minutes inactive = removed
+	cutoff := time.Now().Add(-2 * time.Minute) // 2 minutes inactive = removed
 	activeDevices := []models.ConnectedDevice{}
 	
 	for _, device := range sm.connectedDevices {
@@ -319,6 +322,25 @@ func (sm *ServerManager) cleanupInactiveDevices() {
 		sm.connectedDevices = activeDevices
 		log.Printf("📱 Cleaned up %d inactive devices", removed)
 	}
+}
+
+// startDeviceMonitor starts background monitoring for device connections
+func (sm *ServerManager) startDeviceMonitor() {
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ticker.C:
+				if sm.IsRunning {
+					sm.cleanupInactiveDevices()
+				}
+			case <-sm.ctx.Done():
+				return
+			}
+		}
+	}()
 }
 
 // parseDeviceName extracts device info from user agent

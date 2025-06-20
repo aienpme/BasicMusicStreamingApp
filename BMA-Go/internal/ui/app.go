@@ -18,6 +18,7 @@ type MainUI struct {
 	serverManager     *server.ServerManager
 	musicLibrary      *models.MusicLibrary
 	serverStatus      *ServerStatusBar
+	deviceStatus      *DeviceStatusView
 	songList          *SongListView
 	libraryStatus     *LibraryStatusBar
 	content           *fyne.Container
@@ -48,6 +49,7 @@ func (ui *MainUI) initialize() {
 	
 	// Create UI components connected to the real server manager and music library
 	ui.serverStatus = NewServerStatusBar(ui.serverManager)
+	ui.deviceStatus = NewDeviceStatusView(ui.serverManager)
 	ui.songList = NewSongListView(ui.musicLibrary)
 	ui.libraryStatus = NewLibraryStatusBar(ui.musicLibrary, ui.serverManager)
 
@@ -72,9 +74,14 @@ func (ui *MainUI) initialize() {
 	// }
 
 	// Use BorderContainer to properly position top/bottom bars, but constrain center
-	ui.content = container.NewBorder(
-		// Top: Server status bar (stays at top)
+	topSection := container.NewVBox(
 		ui.serverStatus.GetContent(),
+		ui.deviceStatus.GetContent(),
+	)
+	
+	ui.content = container.NewBorder(
+		// Top: Server status + device status
+		topSection,
 		// Bottom: Library status bar (stays at window bottom)
 		ui.libraryStatus.GetContent(),
 		// Left & Right: nil
