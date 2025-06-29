@@ -1,30 +1,26 @@
-# Major Update Released! 🚀
+# Changelog
 
-## Desktop & CLI Enhancements 🖥️
-**Codebase Restructure:** Both desktop and CLI applications have been completely refactored with a modular architecture. Previously bloated files have been broken down into digestible, maintainable components while preserving full functionality.
+## Android App
+- **UI Modernization**: Removed all emojis and refreshed the overall styling for a smoother, more modern user experience.
+- **Navigation Fixes**: Resolved issues where navigation wasn’t functioning correctly.
+- **Album Display**: Fixed bugs causing albums to not fully display.
+- **Queue System Overhaul**: Redesigned the queue management UI to be more modern and intuitive.
+- **Tailscale Connectivity**: Switched to using IP addresses instead of hostnames for more reliable Tailscale connections.
+- **Connectivity Feedback**: Improved dialog messages for clearer information during Tailscale or connectivity issues.
+- **Streaming Stats**: Introduced detailed streaming statistics—view your most played songs, albums, and artists.
+- **Offline Mode Improvements**:
+  - Track stats while offline.
+  - Manually switch to offline mode.
+  - Reliable syncing when toggling between online and offline modes.
+- **Gesture Controls**: Added gesture support for song navigation in both the full player and miniplayer.
+- **Improved Error Handling**: Enhanced stability with better error management to reduce app crashes.
 
-**Redesigned Interface:** The desktop app features a fresh, modern UI that's much more polished than the previous version. ✨
+## Server
+- **Automatic Album Detection**: Server now automatically detects and indexes albums.
+- **Library Version Tracking**: Added internal version tracking for the library database.
 
-**Enhanced Stability:** Significantly improved error handling prevents crashes, especially when Tailscale isn't running. Fixed critical issues with Tailscale detection on Linux systems. 🛠️
-
-## Android App Overhaul 📱
-I've essentially built a complete music player from the ground up—one I'd actually want to use daily.
-
-**New Features:**
-- **Streaming Stats** – Track your listening time with real-time minute counters 📊
-- **Library Downloads** – Download your entire music collection to your device (currently stored securely within the app) ⬇️
-- **True Offline Mode** – Seamlessly switch to offline playback when disconnected. The app intelligently detects connectivity issues and prompts you to enter offline mode, with full search functionality preserved 📡
-- **Smart Caching** – Recently played tracks load faster with intelligent caching ⚡
-- **Improved Backups** – Properly restores streaming stats and playlists 💾
-
-**Reliability Improvements:**
-- Robust error handling eliminates most crash scenarios
-- Clear, specific error messages help you understand exactly what's happening
-- Graceful handling of connection drops without requiring app restarts 🔧
-
-## Known Issues & Upcoming Fixes:
-- Working on allowing downloads to custom device folders
-- Addressing rare crash scenarios in specific edge cases  
-- Implementing proper state preservation when switching between online/offline modes 🔄
-
-These improvements should make BMA significantly more stable and user-friendly across all platforms! 🎵
+## Desktop App
+- **QR Code Enhancements**: Replaced QR code generation with a more robust and reliable implementation.
+- **Album Cover Art**: Album artwork is now properly displayed.
+- **Tailscale Connectivity**: Improved Tailscale connection checks.
+- **Stability Improvements**: Reduced the likelihood of crashes through better error handling and optimizations.

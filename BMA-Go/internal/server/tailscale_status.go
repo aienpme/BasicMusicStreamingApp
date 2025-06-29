@@ -88,53 +88,35 @@ func (sm *ServerManager) checkTailscaleConnection(tailscalePath string) bool {
 	return true // Be more permissive - if we got this far, Tailscale is probably usable
 }
 
-// getTailscaleHostname gets the Tailscale hostname for this machine
+// getTailscaleHostname gets the Tailscale IP address for this machine (prefers IP over hostname for Android compatibility)
 func (sm *ServerManager) getTailscaleHostname(tailscalePath string) string {
-	log.Println("🔍 Getting Tailscale hostname...")
+	log.Println("🔍 Getting Tailscale IP address...")
 	
-	// Try JSON status first
-	cmd := sm.executeCommand(tailscalePath, "status", "--json")
+	// PRIORITY 1: Try to get IP directly first (for Android compatibility)
+	cmd := sm.executeCommand(tailscalePath, "ip")
 	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("⚠️ Failed to get Tailscale status for hostname: %v", err)
-		
-		// Try to get IP and create a basic hostname
-		cmd = sm.executeCommand(tailscalePath, "ip")
-		output, err = cmd.Output()
-		if err != nil {
-			log.Printf("❌ Failed to get Tailscale IP: %v", err)
-			return ""
-		}
-		
-		// Use the first IP as a fallback
+	if err == nil {
 		ips := strings.Fields(strings.TrimSpace(string(output)))
 		if len(ips) > 0 {
 			ip := ips[0]
-			log.Printf("✅ Using Tailscale IP as hostname: %s", ip)
+			log.Printf("✅ Using Tailscale IP address: %s", ip)
 			return ip
 		}
-		
-		log.Println("❌ No Tailscale IPs found")
+	}
+	log.Printf("⚠️ Failed to get Tailscale IP directly: %v", err)
+	
+	// PRIORITY 2: Try JSON status as fallback
+	cmd = sm.executeCommand(tailscalePath, "status", "--json")
+	output, err = cmd.Output()
+	if err != nil {
+		log.Printf("❌ Failed to get Tailscale status for IP: %v", err)
 		return ""
 	}
 	
 	// Parse JSON output
 	var status map[string]interface{}
 	if err := json.Unmarshal(output, &status); err != nil {
-		log.Printf("⚠️ Failed to parse Tailscale hostname JSON: %v", err)
-		
-		// Fallback: try to get IP
-		cmd = sm.executeCommand(tailscalePath, "ip")
-		output, err = cmd.Output()
-		if err == nil {
-			ips := strings.Fields(strings.TrimSpace(string(output)))
-			if len(ips) > 0 {
-				ip := ips[0]
-				log.Printf("✅ Using Tailscale IP as hostname (JSON failed): %s", ip)
-				return ip
-			}
-		}
-		
+		log.Printf("❌ Failed to parse Tailscale JSON: %v", err)
 		return ""
 	}
 	
@@ -142,69 +124,28 @@ func (sm *ServerManager) getTailscaleHostname(tailscalePath string) string {
 	self, ok := status["Self"].(map[string]interface{})
 	if !ok {
 		log.Println("⚠️ Could not extract Self info from Tailscale status")
-		
-		// Try to find any peer that might be ourselves
-		peers, ok := status["Peers"].(map[string]interface{})
-		if ok {
-			for _, peer := range peers {
-				if peerMap, ok := peer.(map[string]interface{}); ok {
-					if dnsName, ok := peerMap["DNSName"].(string); ok && dnsName != "" {
-						cleanedName := strings.TrimSuffix(dnsName, ".")
-						log.Printf("✅ Using peer DNSName as hostname: %s", cleanedName)
-						return cleanedName
-					}
-				}
-			}
-		}
-		
-		// Last resort: try IP command
-		cmd = sm.executeCommand(tailscalePath, "ip")
-		output, err = cmd.Output()
-		if err == nil {
-			ips := strings.Fields(strings.TrimSpace(string(output)))
-			if len(ips) > 0 {
-				ip := ips[0]
-				log.Printf("✅ Using Tailscale IP as hostname (no Self): %s", ip)
-				return ip
-			}
-		}
-		
 		return ""
 	}
 	
-	// Get DNS name
+	// PRIORITY: Try to get IP from Self TailscaleIPs first (Android compatibility)
+	if ips, ok := self["TailscaleIPs"].([]interface{}); ok && len(ips) > 0 {
+		if ip, ok := ips[0].(string); ok {
+			log.Printf("✅ Using Tailscale IP from JSON Self: %s", ip)
+			return ip
+		}
+	}
+	
+	// FALLBACK: Try DNS name if IP not available
 	dnsName, ok := self["DNSName"].(string)
-	if !ok {
-		log.Println("⚠️ Could not extract DNSName from Tailscale Self info")
-		
-		// Try to get IP from Self info
-		if ips, ok := self["TailscaleIPs"].([]interface{}); ok && len(ips) > 0 {
-			if ip, ok := ips[0].(string); ok {
-				log.Printf("✅ Using Tailscale IP from Self: %s", ip)
-				return ip
-			}
-		}
-		
-		// Last resort: IP command
-		cmd = sm.executeCommand(tailscalePath, "ip")
-		output, err = cmd.Output()
-		if err == nil {
-			ips := strings.Fields(strings.TrimSpace(string(output)))
-			if len(ips) > 0 {
-				ip := ips[0]
-				log.Printf("✅ Using Tailscale IP as hostname (no DNSName): %s", ip)
-				return ip
-			}
-		}
-		
-		return ""
+	if ok && dnsName != "" {
+		// Clean up DNS name (remove trailing dots)
+		cleanedName := strings.TrimSuffix(dnsName, ".")
+		log.Printf("⚠️ Using Tailscale hostname as fallback (may not work on Android): %s", cleanedName)
+		return cleanedName
 	}
 	
-	// Clean up DNS name (remove trailing dots)
-	cleanedName := strings.TrimSuffix(dnsName, ".")
-	
-	log.Printf("✅ Found Tailscale hostname: %s", cleanedName)
-	return cleanedName
+	log.Println("❌ No Tailscale IP or hostname found in JSON")
+	return ""
 }
 
 // RefreshTailscaleStatus re-checks Tailscale status (for UI refresh)

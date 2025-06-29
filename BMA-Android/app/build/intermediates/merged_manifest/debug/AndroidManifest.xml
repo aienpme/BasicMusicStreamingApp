@@ -63,6 +63,7 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@drawable/ic_launcher_foreground"
         android:supportsRtl="true"
+        android:testOnly="true"
         android:theme="@style/Theme.BMA"
         android:usesCleartextTraffic="true" >
         <activity
@@ -92,6 +93,11 @@
             android:screenOrientation="portrait" />
         <activity
             android:name="com.bma.android.ui.downloads.DownloadSelectionActivity"
+            android:exported="false"
+            android:parentActivityName="com.bma.android.MainActivity"
+            android:windowSoftInputMode="adjustPan" />
+        <activity
+            android:name="com.bma.android.ui.stats.StreamingStatsActivity"
             android:exported="false"
             android:parentActivityName="com.bma.android.MainActivity" />
 

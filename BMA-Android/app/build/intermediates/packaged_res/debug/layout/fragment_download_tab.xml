@@ -13,16 +13,17 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="@drawable/rounded_background"
-        android:padding="16dp"
-        android:layout_marginBottom="16dp">
+        android:background="@drawable/download_card_background"
+        android:padding="20dp"
+        android:layout_marginBottom="12dp"
+        android:layout_marginHorizontal="4dp">
 
-        <TextView
+        <ImageView
             android:id="@+id/tab_icon"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="🎵"
-            android:textSize="24sp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_music_note"
+            app:tint="@color/text_primary"
             android:layout_marginEnd="12dp" />
 
         <LinearLayout
@@ -37,16 +38,21 @@
                 android:layout_height="wrap_content"
                 android:text="Songs"
                 android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:textSize="19sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.01"
+                android:lineSpacingExtra="2sp" />
 
             <TextView
                 android:id="@+id/tab_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Select individual songs to download"
-                android:textColor="#B3FFFFFF"
-                android:textSize="14sp" />
+                android:textColor="#CCFFFFFF"
+                android:textSize="14sp"
+                android:fontFamily="sans-serif"
+                android:letterSpacing="0.005"
+                android:layout_marginTop="2dp" />
 
         </LinearLayout>
 
@@ -62,7 +68,7 @@
             android:id="@+id/delete_all_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@android:drawable/ic_menu_delete"
+            android:src="@drawable/ic_delete_modern"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="Delete All Downloaded"
             android:padding="8dp"
@@ -73,34 +79,35 @@
     </LinearLayout>
 
     <!-- Search bar -->
-    <com.google.android.material.textfield.TextInputLayout
+    <EditText
+        android:id="@+id/search_edit_text"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        app:boxStrokeColor="@color/primary"
-        app:hintTextColor="@color/primary">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/search_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Search..."
-            android:textColor="@android:color/white"
-            android:textColorHint="#80FFFFFF"
-            android:drawableStart="@android:drawable/ic_menu_search"
-            android:drawablePadding="12dp" />
-
-    </com.google.android.material.textfield.TextInputLayout>
+        android:layout_height="48dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginHorizontal="4dp"
+        android:hint="Search..."
+        android:textColor="@android:color/white"
+        android:textColorHint="#80FFFFFF"
+        android:background="@drawable/download_card_background"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="12dp"
+        android:drawableStart="@drawable/ic_search_modern"
+        android:drawablePadding="12dp"
+        android:inputType="text"
+        android:maxLines="1"
+        android:singleLine="true"
+        android:selectAllOnFocus="false"
+        android:textCursorDrawable="@null" />
 
     <!-- Download status summary -->
     <LinearLayout
+        android:id="@+id/download_status_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:background="@drawable/rounded_background"
-        android:padding="12dp"
-        android:layout_marginBottom="16dp">
+        android:background="@drawable/download_card_background"
+        android:padding="16dp"
+        android:layout_marginHorizontal="4dp">
 
         <TextView
             android:id="@+id/download_status_text"
@@ -108,8 +115,12 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="0 selected for download"
-            android:textColor="#B3FFFFFF"
-            android:textSize="14sp" />
+            android:textColor="#CCFFFFFF"
+            android:textSize="15sp"
+            android:fontFamily="sans-serif"
+            android:letterSpacing="0.005"
+            android:drawablePadding="8dp"
+            android:gravity="center_vertical" />
 
         <TextView
             android:id="@+id/download_size_text"
@@ -117,8 +128,9 @@
             android:layout_height="wrap_content"
             android:text="~0 MB"
             android:textColor="@color/primary"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            android:textSize="15sp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.01" />
 
     </LinearLayout>
 
@@ -140,11 +152,11 @@
         android:gravity="center"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="📭"
-            android:textSize="48sp"
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_empty_downloads"
+            app:tint="@color/text_secondary"
             android:layout_marginBottom="16dp" />
 
         <TextView

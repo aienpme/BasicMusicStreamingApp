@@ -66,6 +66,9 @@ public final class FragmentSettingsBinding implements ViewBinding {
   public final MaterialButton restoreButton;
 
   @NonNull
+  public final MaterialButton seeStreamingStatsButton;
+
+  @NonNull
   public final TextView settingsTitle;
 
   @NonNull
@@ -82,8 +85,9 @@ public final class FragmentSettingsBinding implements ViewBinding {
       @NonNull TextView downloadDescription, @NonNull MaterialButton downloadQualityButton,
       @NonNull TextView downloadSettingsTitle, @NonNull TextView minutesListenedLabel,
       @NonNull TextView minutesListenedValue, @NonNull MaterialButton reconnectButton,
-      @NonNull MaterialButton restoreButton, @NonNull TextView settingsTitle,
-      @NonNull TextView streamingStatsDescription, @NonNull TextView streamingStatsTitle) {
+      @NonNull MaterialButton restoreButton, @NonNull MaterialButton seeStreamingStatsButton,
+      @NonNull TextView settingsTitle, @NonNull TextView streamingStatsDescription,
+      @NonNull TextView streamingStatsTitle) {
     this.rootView = rootView;
     this.backupButton = backupButton;
     this.backupDescription = backupDescription;
@@ -100,6 +104,7 @@ public final class FragmentSettingsBinding implements ViewBinding {
     this.minutesListenedValue = minutesListenedValue;
     this.reconnectButton = reconnectButton;
     this.restoreButton = restoreButton;
+    this.seeStreamingStatsButton = seeStreamingStatsButton;
     this.settingsTitle = settingsTitle;
     this.streamingStatsDescription = streamingStatsDescription;
     this.streamingStatsTitle = streamingStatsTitle;
@@ -222,6 +227,12 @@ public final class FragmentSettingsBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.see_streaming_stats_button;
+      MaterialButton seeStreamingStatsButton = ViewBindings.findChildViewById(rootView, id);
+      if (seeStreamingStatsButton == null) {
+        break missingId;
+      }
+
       id = R.id.settings_title;
       TextView settingsTitle = ViewBindings.findChildViewById(rootView, id);
       if (settingsTitle == null) {
@@ -244,7 +255,8 @@ public final class FragmentSettingsBinding implements ViewBinding {
           backupSettingsTitle, clearCacheButton, connectionSettingsTitle, connectionStatusLabel,
           connectionStatusText, disconnectButton, downloadDescription, downloadQualityButton,
           downloadSettingsTitle, minutesListenedLabel, minutesListenedValue, reconnectButton,
-          restoreButton, settingsTitle, streamingStatsDescription, streamingStatsTitle);
+          restoreButton, seeStreamingStatsButton, settingsTitle, streamingStatsDescription,
+          streamingStatsTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

@@ -82,21 +82,27 @@ class NotificationCoordinator(
         if (currentSong != null) {
             Log.d("NotificationCoordinator", "Updating all: notification, metadata, and playback state")
             
-            // Update metadata first
-            updateMediaMetadata(currentSong)
+            // Clear any cached artwork first to ensure fresh load
+            notificationManager.clearAlbumArt()
             
-            // Then update playback state
+            // Update playback state first
             updatePlaybackState()
             
-            // Load album art and update notification
-            if (coordinatorCallback.isPlaying()) {
-                notificationManager.loadAlbumArt(currentSong) {
-                    // Album art loaded, update notification
-                    updateNotification()
-                }
-            } else {
+            // Load album art and update both notification and MediaSession metadata
+            notificationManager.loadAlbumArt(currentSong) {
+                // Album art loaded, update MediaSession metadata with high-quality artwork
+                updateMediaMetadata(currentSong)
+                // Then update notification
                 updateNotification()
             }
+            
+            // Also update MediaSession metadata immediately with no artwork
+            // This ensures the MediaSession shows new song info right away
+            updateMediaMetadata(currentSong)
+            
+            // Also update notification immediately with no artwork
+            // This ensures the notification shows new song info right away
+            updateNotification()
         }
     }
     

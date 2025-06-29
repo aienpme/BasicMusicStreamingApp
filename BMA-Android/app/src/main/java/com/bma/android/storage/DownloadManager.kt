@@ -279,6 +279,14 @@ class DownloadManager private constructor(private val context: Context) {
             val success = downloadFileWithProgress(streamUrl, downloadFile, song.id)
             
             if (success) {
+                // Also download artwork if it doesn't exist
+                try {
+                    downloadArtwork(song)
+                } catch (e: Exception) {
+                    Log.w("DownloadManager", "Failed to download artwork for ${song.title}: ${e.message}")
+                    // Don't fail the entire download if artwork fails
+                }
+                
                 // Add to download metadata
                 val entry = DownloadEntry(
                     songId = song.id,
@@ -307,6 +315,58 @@ class DownloadManager private constructor(private val context: Context) {
             return@withContext false
         } finally {
             downloadProgress.remove(song.id)
+        }
+    }
+    
+    /**
+     * Download artwork for a song
+     */
+    private suspend fun downloadArtwork(song: Song) = withContext(Dispatchers.IO) {
+        try {
+            val artworkFile = getArtworkFile(song)
+            
+            // Skip if artwork already exists
+            if (artworkFile.exists() && artworkFile.length() > 0) {
+                Log.d("DownloadManager", "Artwork already exists for ${song.title}")
+                return@withContext
+            }
+            
+            // Ensure parent directories exist
+            artworkFile.parentFile?.mkdirs()
+            
+            // Get artwork URL
+            val artworkUrl = "http${if (com.bma.android.api.ApiClient.getServerUrl().startsWith("https")) "s" else ""}://${com.bma.android.api.ApiClient.getServerUrl().removePrefix("https://").removePrefix("http://")}/artwork/${song.id}"
+            
+            // Get auth header
+            val authHeader = com.bma.android.api.ApiClient.getAuthHeader()
+            if (authHeader == null) {
+                Log.w("DownloadManager", "No auth header available for artwork download")
+                return@withContext
+            }
+            
+            // Download artwork
+            val connection = URL(artworkUrl).openConnection()
+            connection.setRequestProperty("Authorization", authHeader)
+            connection.connectTimeout = 30000
+            connection.readTimeout = 30000
+            
+            connection.inputStream.use { input ->
+                FileOutputStream(artworkFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            
+            Log.d("DownloadManager", "Successfully downloaded artwork for ${song.title}")
+            
+        } catch (e: Exception) {
+            Log.e("DownloadManager", "Error downloading artwork for ${song.title}: ${e.message}", e)
+            // Clean up partial file
+            try {
+                getArtworkFile(song).delete()
+            } catch (cleanupEx: Exception) {
+                // Ignore cleanup errors
+            }
+            throw e
         }
     }
     

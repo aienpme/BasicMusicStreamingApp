@@ -205,6 +205,9 @@ class SearchFragment : Fragment(R.layout.fragment_search), MainActivity.OfflineM
                 
                 // Use new animation system instead of AlbumDetailActivity
                 (requireActivity() as? MainActivity)?.showAlbumDetail(album)
+            },
+            onSongLongClick = { song, _ ->
+                showQueueOptionsDialog(song)
             }
         )
         binding.searchResultsRecyclerView.apply {
@@ -291,12 +294,8 @@ class SearchFragment : Fragment(R.layout.fragment_search), MainActivity.OfflineM
         binding.recentlyPlayedRecyclerView.isVisible = true
         binding.recentlyPlayedTitle.isVisible = true
         
-        // Show offline indicator if in offline mode  
-        if (isOfflineMode) {
-            binding.recentlyPlayedTitle.text = "🔸 Recently Played (Offline Mode)"
-        } else {
-            binding.recentlyPlayedTitle.text = "Recently Played"
-        }
+        // Always show simple "Recently Played" title
+        binding.recentlyPlayedTitle.text = "Recently Played"
     }
 
     private fun showSearchResults() {
@@ -548,7 +547,8 @@ class SearchFragment : Fragment(R.layout.fragment_search), MainActivity.OfflineM
 // Adapter for mixed search results (songs and albums)
 class SearchResultsAdapter(
     private val onSongClick: (Song, Album) -> Unit,
-    private val onAlbumClick: (Album) -> Unit
+    private val onAlbumClick: (Album) -> Unit,
+    private val onSongLongClick: (Song, Album) -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     companion object {
@@ -625,6 +625,11 @@ class SearchResultsAdapter(
             
             binding.root.setOnClickListener {
                 onSongClick(song, album)
+            }
+            
+            binding.root.setOnLongClickListener {
+                onSongLongClick(song, album)
+                true
             }
         }
         

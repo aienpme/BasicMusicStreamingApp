@@ -17,6 +17,7 @@ type ModernCard struct {
 	Title    string
 	Subtitle string
 	Content  fyne.CanvasObject
+	Artwork  *canvas.Image
 	OnTap    func()
 }
 
@@ -26,6 +27,18 @@ func NewModernCard(title, subtitle string, content fyne.CanvasObject) *ModernCar
 		Title:    title,
 		Subtitle: subtitle,
 		Content:  content,
+	}
+	card.ExtendBaseWidget(card)
+	return card
+}
+
+// NewModernCardWithArtwork creates a new modern card widget with artwork
+func NewModernCardWithArtwork(title, subtitle string, content fyne.CanvasObject, artwork *canvas.Image) *ModernCard {
+	card := &ModernCard{
+		Title:    title,
+		Subtitle: subtitle,
+		Content:  content,
+		Artwork:  artwork,
 	}
 	card.ExtendBaseWidget(card)
 	return card
@@ -49,37 +62,24 @@ func (c *ModernCard) CreateRenderer() fyne.WidgetRenderer {
 	// Subtitle label
 	subtitleLabel := widget.NewLabel(c.Subtitle)
 	
-	// Header container
-	var header fyne.CanvasObject
-	if c.Subtitle != "" {
-		header = container.NewVBox(titleLabel, subtitleLabel)
-	} else if c.Title != "" {
-		header = titleLabel
-	}
-	
-	// Content container with padding
-	var content fyne.CanvasObject
-	if header != nil && c.Content != nil {
-		content = container.NewBorder(
-			container.NewPadded(header),
-			nil, nil, nil,
-			container.NewPadded(c.Content),
-		)
-	} else if c.Content != nil {
-		content = container.NewPadded(c.Content)
-	} else if header != nil {
-		content = container.NewPadded(header)
-	}
-	
-	return &modernCardRenderer{
-		card:         c,
-		bg:           bg,
-		shadow1:      shadow1,
-		shadow2:      shadow2,
-		content:      content,
-		titleLabel:   titleLabel,
+	// Create renderer with labels stored for later use
+	renderer := &modernCardRenderer{
+		card:          c,
+		bg:            bg,
+		shadow1:       shadow1,
+		shadow2:       shadow2,
+		titleLabel:    titleLabel,
 		subtitleLabel: subtitleLabel,
 	}
+	
+	// Build initial content using helper method
+	initialContent := renderer.buildContentLayout()
+	contentContainer := container.NewStack(initialContent)
+	
+	renderer.content = contentContainer
+	renderer.contentContainer = contentContainer
+	
+	return renderer
 }
 
 // Tapped handles tap events
@@ -97,6 +97,7 @@ type modernCardRenderer struct {
 	content      fyne.CanvasObject
 	titleLabel   *widget.Label
 	subtitleLabel *widget.Label
+	contentContainer *fyne.Container  // Store the main container so we can rebuild it
 }
 
 func (r *modernCardRenderer) Layout(size fyne.Size) {
@@ -134,6 +135,73 @@ func (r *modernCardRenderer) Refresh() {
 	if r.subtitleLabel != nil {
 		r.subtitleLabel.SetText(r.card.Subtitle)
 	}
+	
+	// Rebuild content layout to handle artwork changes
+	newContent := r.buildContentLayout()
+	
+	// Replace the content in our container
+	r.contentContainer.Objects = []fyne.CanvasObject{newContent}
+	r.contentContainer.Refresh()
+}
+
+// buildContentLayout creates the content layout (extracted from CreateRenderer)
+func (r *modernCardRenderer) buildContentLayout() fyne.CanvasObject {
+	// Header container
+	var header fyne.CanvasObject
+	if r.card.Subtitle != "" {
+		header = container.NewVBox(r.titleLabel, r.subtitleLabel)
+	} else if r.card.Title != "" {
+		header = r.titleLabel
+	}
+	
+	// Content container with padding
+	if r.card.Artwork != nil {
+		// Layout with artwork on the right side
+		// Set a minimum size for the artwork so it doesn't collapse
+		r.card.Artwork.SetMinSize(fyne.NewSize(60, 60))
+
+		// Create a spacer to add padding to the right of the artwork
+		spacer := canvas.NewRectangle(color.Transparent)
+		spacer.SetMinSize(fyne.NewSize(12, 1)) // 12dp spacer for right-side padding
+
+		// Put artwork and spacer in an HBox. This HBox becomes the right-side content.
+		rightContent := container.NewHBox(r.card.Artwork, spacer)
+
+		var textContent fyne.CanvasObject
+		if header != nil && r.card.Content != nil {
+			textContent = container.NewVBox(header, r.card.Content)
+		} else if r.card.Content != nil {
+			textContent = r.card.Content
+		} else if header != nil {
+			textContent = header
+		}
+		
+		if textContent != nil {
+			return container.NewBorder(
+				nil, nil,
+				nil,
+				container.NewPadded(rightContent),
+				container.NewPadded(textContent),
+			)
+		} else {
+			return container.NewPadded(rightContent)
+		}
+	} else {
+		// Original layout without artwork
+		if header != nil && r.card.Content != nil {
+			return container.NewBorder(
+				container.NewPadded(header),
+				nil, nil, nil,
+				container.NewPadded(r.card.Content),
+			)
+		} else if r.card.Content != nil {
+			return container.NewPadded(r.card.Content)
+		} else if header != nil {
+			return container.NewPadded(header)
+		}
+	}
+	
+	return container.NewPadded(widget.NewLabel(""))
 }
 
 func (r *modernCardRenderer) Objects() []fyne.CanvasObject {

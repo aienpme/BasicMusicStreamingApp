@@ -1,6 +1,0 @@
-com.bma.android.test.app-jetified-annotation-experimental-1.3.1-0 /Users/alex/.gradle/caches/transforms-3/2f63942e7884f3ef46de95fec3b1aecc/transformed/jetified-annotation-experimental-1.3.1/res
-com.bma.android.test.app-jetified-core-1.5.0-1 /Users/alex/.gradle/caches/transforms-3/8fd765524307c8356670437453753f1f/transformed/jetified-core-1.5.0/res
-com.bma.android.test.app-androidTest-2 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/generated/res/resValues/androidTest/debug
-com.bma.android.test.app-mergeDebugAndroidTestResources-3 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
-com.bma.android.test.app-mergeDebugAndroidTestResources-4 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
-com.bma.android.test.app-merged_res-5 /Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/build/intermediates/merged_res/debugAndroidTest

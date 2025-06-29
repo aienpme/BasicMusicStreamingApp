@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -21,6 +22,12 @@ import java.lang.String;
 public final class MiniPlayerBinding implements ViewBinding {
   @NonNull
   private final ConstraintLayout rootView;
+
+  @NonNull
+  public final ConstraintLayout contentContainer;
+
+  @NonNull
+  public final LinearLayout controlsContainer;
 
   @NonNull
   public final TextView miniPlayerArtist;
@@ -43,11 +50,18 @@ public final class MiniPlayerBinding implements ViewBinding {
   @NonNull
   public final TextView miniPlayerTitle;
 
-  private MiniPlayerBinding(@NonNull ConstraintLayout rootView, @NonNull TextView miniPlayerArtist,
-      @NonNull ImageView miniPlayerArtwork, @NonNull ImageButton miniPlayerNext,
-      @NonNull ImageButton miniPlayerPlayPause, @NonNull ImageButton miniPlayerPrevious,
-      @NonNull ProgressBar miniPlayerProgress, @NonNull TextView miniPlayerTitle) {
+  @NonNull
+  public final LinearLayout textContainer;
+
+  private MiniPlayerBinding(@NonNull ConstraintLayout rootView,
+      @NonNull ConstraintLayout contentContainer, @NonNull LinearLayout controlsContainer,
+      @NonNull TextView miniPlayerArtist, @NonNull ImageView miniPlayerArtwork,
+      @NonNull ImageButton miniPlayerNext, @NonNull ImageButton miniPlayerPlayPause,
+      @NonNull ImageButton miniPlayerPrevious, @NonNull ProgressBar miniPlayerProgress,
+      @NonNull TextView miniPlayerTitle, @NonNull LinearLayout textContainer) {
     this.rootView = rootView;
+    this.contentContainer = contentContainer;
+    this.controlsContainer = controlsContainer;
     this.miniPlayerArtist = miniPlayerArtist;
     this.miniPlayerArtwork = miniPlayerArtwork;
     this.miniPlayerNext = miniPlayerNext;
@@ -55,6 +69,7 @@ public final class MiniPlayerBinding implements ViewBinding {
     this.miniPlayerPrevious = miniPlayerPrevious;
     this.miniPlayerProgress = miniPlayerProgress;
     this.miniPlayerTitle = miniPlayerTitle;
+    this.textContainer = textContainer;
   }
 
   @Override
@@ -84,6 +99,18 @@ public final class MiniPlayerBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.contentContainer;
+      ConstraintLayout contentContainer = ViewBindings.findChildViewById(rootView, id);
+      if (contentContainer == null) {
+        break missingId;
+      }
+
+      id = R.id.controlsContainer;
+      LinearLayout controlsContainer = ViewBindings.findChildViewById(rootView, id);
+      if (controlsContainer == null) {
+        break missingId;
+      }
+
       id = R.id.miniPlayerArtist;
       TextView miniPlayerArtist = ViewBindings.findChildViewById(rootView, id);
       if (miniPlayerArtist == null) {
@@ -126,9 +153,15 @@ public final class MiniPlayerBinding implements ViewBinding {
         break missingId;
       }
 
-      return new MiniPlayerBinding((ConstraintLayout) rootView, miniPlayerArtist, miniPlayerArtwork,
-          miniPlayerNext, miniPlayerPlayPause, miniPlayerPrevious, miniPlayerProgress,
-          miniPlayerTitle);
+      id = R.id.textContainer;
+      LinearLayout textContainer = ViewBindings.findChildViewById(rootView, id);
+      if (textContainer == null) {
+        break missingId;
+      }
+
+      return new MiniPlayerBinding((ConstraintLayout) rootView, contentContainer, controlsContainer,
+          miniPlayerArtist, miniPlayerArtwork, miniPlayerNext, miniPlayerPlayPause,
+          miniPlayerPrevious, miniPlayerProgress, miniPlayerTitle, textContainer);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

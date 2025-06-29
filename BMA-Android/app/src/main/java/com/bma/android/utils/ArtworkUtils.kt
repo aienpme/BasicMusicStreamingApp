@@ -16,34 +16,35 @@ import java.io.File
 object ArtworkUtils {
     
     /**
-     * Get the appropriate artwork URL or file path for a song based on current mode
+     * Get the appropriate artwork URL or file path for a song from both local and server sources
      * @param context Application context
      * @param song Song object
-     * @return String containing either server URL or local file path
+     * @return String containing either local file path or server URL
      */
     suspend fun getArtworkPath(context: Context, song: Song): String {
         return withContext(Dispatchers.IO) {
-            // Check if we're in offline mode
-            if (OfflineModeManager.isOfflineMode()) {
-                // Try to get local artwork file
-                val downloadManager = DownloadManager.getInstance(context)
-                val artworkFile = downloadManager.getArtworkFile(song)
-                
-                // Check if artwork file exists locally
-                if (artworkFile.exists() && artworkFile.length() > 0) {
-                    return@withContext "file://${artworkFile.absolutePath}"
-                }
-                
-                // Fallback: if no local artwork but song is downloaded, 
-                // still try to avoid server calls in offline mode
-                if (downloadManager.isDownloaded(song.id)) {
-                    // Return empty string to trigger fallback drawable in Glide
-                    return@withContext ""
-                }
+            // FIXED: Always check for local artwork first, regardless of current mode
+            // This ensures songs tracked in offline mode can display artwork when back online
+            
+            val downloadManager = DownloadManager.getInstance(context)
+            val artworkFile = downloadManager.getArtworkFile(song)
+            
+            // Check if artwork file exists locally
+            if (artworkFile.exists() && artworkFile.length() > 0) {
+                android.util.Log.d("ArtworkUtils", "Using local artwork for song: ${song.title}")
+                return@withContext "file://${artworkFile.absolutePath}"
             }
             
-            // Default: return server URL for online mode
-            return@withContext "${ApiClient.getServerUrl()}/artwork/${song.id}"
+            // If no local artwork available, check if we should use server URL
+            if (!OfflineModeManager.isOfflineMode()) {
+                // Online mode: use server URL as fallback
+                android.util.Log.d("ArtworkUtils", "Using server artwork for song: ${song.title}")
+                return@withContext "${ApiClient.getServerUrl()}/artwork/${song.id}"
+            } else {
+                // Offline mode: no server access allowed, use empty string for fallback drawable
+                android.util.Log.d("ArtworkUtils", "No local artwork available in offline mode for song: ${song.title}")
+                return@withContext ""
+            }
         }
     }
     

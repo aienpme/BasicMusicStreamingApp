@@ -6,8 +6,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.widget.SeekBar
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -68,6 +71,7 @@ class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener
         setContentView(binding.root)
 
         setupUI()
+        setupBackNavigation()
         bindMusicService()
     }
     
@@ -79,6 +83,22 @@ class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener
             unbindService(serviceConnection)
             serviceBound = false
         }
+    }
+    
+    private fun setupBackNavigation() {
+        // Handle modern gesture navigation and back button
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                finish()
+                overridePendingTransition(0, R.anim.slide_out_down)
+            }
+        })
+    }
+    
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() {
+        super.onBackPressed()
+        overridePendingTransition(0, R.anim.slide_out_down)
     }
     
     private fun bindMusicService() {
@@ -126,13 +146,19 @@ class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener
     }
 
     private fun setupUI() {
-        binding.backButton.setOnClickListener { finish() }
+        binding.backButton.setOnClickListener { 
+            finish()
+            overridePendingTransition(0, R.anim.slide_out_down)
+        }
         binding.playPauseButton.setOnClickListener { togglePlayPause() }
         binding.nextButton.setOnClickListener { playNextSong() }
         binding.previousButton.setOnClickListener { playPreviousSong() }
         binding.shuffleButton.setOnClickListener { toggleShuffle() }
         binding.repeatButton.setOnClickListener { cycleRepeatMode() }
         binding.queueButton.setOnClickListener { showQueue() }
+
+        // Setup album cover swipe gestures
+        setupAlbumCoverSwipeGestures()
 
         binding.seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
@@ -143,6 +169,59 @@ class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
             override fun onStopTrackingTouch(seekBar: SeekBar?) {}
         })
+    }
+
+    private fun setupAlbumCoverSwipeGestures() {
+        val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            
+            override fun onDown(e: MotionEvent): Boolean {
+                return true // Must return true to receive other gestures
+            }
+            
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                Log.d("PlayerActivity", "Album cover fling detected")
+                
+                if (!isSwipeAllowed()) {
+                    val queueSize = musicService?.getUpcomingQueue()?.size ?: 0
+                    val totalSongs = queueSize + 1
+                    Log.d("PlayerActivity", "Swipe not allowed - Queue: $totalSongs songs, Repeat mode: ${musicService?.getRepeatMode()}")
+                    return false
+                }
+                
+                val deltaX = e2.x - (e1?.x ?: 0f)
+                val deltaY = e2.y - (e1?.y ?: 0f)
+                
+                // Horizontal swipe detection (minimum 30px threshold)
+                if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY) && kotlin.math.abs(deltaX) > 30) {
+                    if (deltaX > 0) {
+                        // Swipe right - previous song
+                        Log.d("PlayerActivity", "Album cover swipe right - previous song")
+                        musicService?.skipToPrevious()
+                    } else {
+                        // Swipe left - next song
+                        Log.d("PlayerActivity", "Album cover swipe left - next song")
+                        musicService?.skipToNext()
+                    }
+                    return true
+                }
+                return false
+            }
+        })
+        
+        // Apply gesture detection only to album cover
+        binding.albumArt.setOnTouchListener { _, event ->
+            gestureDetector.onTouchEvent(event)
+        }
+    }
+
+    private fun isSwipeAllowed(): Boolean {
+        val service = musicService ?: return false
+        val upcomingQueue = service.getUpcomingQueue()
+        val totalSongs = upcomingQueue.size + 1 // +1 for current playing song
+        val repeatMode = service.getRepeatMode()
+        
+        // Allow swiping if there are multiple songs in queue OR repeat mode is on
+        return totalSongs > 1 || repeatMode == 1 || repeatMode == 2
     }
 
     private fun updateUI() {
@@ -293,11 +372,16 @@ class PlayerActivity : AppCompatActivity(), ListenerManager.MusicServiceListener
     
     private fun showQueue() {
         musicService?.let { service ->
-            // NEW: Launch QueueActivity for Spotify-like queue management
+            // NEW: Launch modern bottom sheet queue (Spotify-style)
+            val bottomSheet = QueueBottomSheetFragment()
+            bottomSheet.show(supportFragmentManager, "QueueBottomSheet")
+            
+            /* OLD IMPLEMENTATION: QueueActivity launch (preserved as fallback)
             val intent = Intent(this, QueueActivity::class.java)
             startActivity(intent)
+            */
             
-            /* OLD IMPLEMENTATION: Simple AlertDialog (preserved as fallback)
+            /* ORIGINAL: Simple AlertDialog (preserved as fallback)
             val upcomingQueue = service.getUpcomingQueue()
             val currentSong = service.getCurrentSong()
             

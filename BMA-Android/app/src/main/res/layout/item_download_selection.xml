@@ -5,36 +5,30 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:background="@drawable/rounded_background"
-    android:padding="16dp"
-    android:layout_marginBottom="8dp"
+    android:background="@drawable/download_card_ripple"
+    android:padding="20dp"
+    android:layout_marginBottom="12dp"
+    android:layout_marginHorizontal="4dp"
     android:clickable="true"
-    android:focusable="true"
-    android:foreground="?android:attr/selectableItemBackground">
-
-    <!-- Checkbox for selection -->
-    <CheckBox
-        android:id="@+id/selection_checkbox"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center_vertical"
-        android:layout_marginEnd="16dp"
-        android:buttonTint="@color/primary" />
+    android:focusable="true">
 
     <!-- Item info -->
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:layout_marginEnd="20dp">
 
         <TextView
             android:id="@+id/item_title"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@android:color/white"
-            android:textSize="16sp"
-            android:textStyle="bold"
+            android:textSize="17sp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.01"
+            android:lineSpacingExtra="2sp"
             android:maxLines="1"
             android:ellipsize="end"
             tools:text="Song Title" />
@@ -43,46 +37,51 @@
             android:id="@+id/item_subtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#B3FFFFFF"
+            android:textColor="#CCFFFFFF"
             android:textSize="14sp"
+            android:fontFamily="sans-serif"
+            android:letterSpacing="0.005"
             android:maxLines="1"
             android:ellipsize="end"
-            android:layout_marginTop="4dp"
+            android:layout_marginTop="6dp"
             tools:text="Artist - Album" />
 
         <TextView
             android:id="@+id/item_details"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="#80FFFFFF"
+            android:textColor="#99FFFFFF"
             android:textSize="12sp"
+            android:fontFamily="sans-serif"
+            android:letterSpacing="0.02"
             android:maxLines="1"
             android:ellipsize="end"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             tools:text="3:45 • 5.2 MB" />
 
     </LinearLayout>
 
-    <!-- Download status indicator -->
+    <!-- Download status indicator (for downloaded items) -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:orientation="vertical"
-        android:gravity="center">
+        android:gravity="center"
+        android:layout_marginEnd="12dp">
 
         <ImageView
             android:id="@+id/download_status_icon"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:src="@android:drawable/stat_sys_download"
             android:tint="@color/primary"
             android:visibility="gone" />
 
         <ProgressBar
             android:id="@+id/download_progress"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="26dp"
+            android:layout_height="26dp"
             android:visibility="gone"
             style="@android:style/Widget.Material.ProgressBar.Small" />
 
@@ -91,12 +90,22 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/primary"
-            android:textSize="10sp"
+            android:textSize="11sp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.03"
             android:gravity="center"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             android:visibility="gone"
             tools:text="Downloaded" />
 
     </LinearLayout>
+
+    <!-- Checkbox for selection (moved to right side to match "Select All") -->
+    <CheckBox
+        android:id="@+id/selection_checkbox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:buttonTint="@color/primary" />
 
 </LinearLayout>

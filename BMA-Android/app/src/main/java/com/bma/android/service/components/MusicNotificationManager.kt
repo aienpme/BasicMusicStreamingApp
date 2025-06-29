@@ -16,10 +16,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.bma.android.api.ApiClient
 import com.bma.android.models.Song
+import com.bma.android.utils.ArtworkUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.URL
 
 /**
@@ -194,65 +196,150 @@ class MusicNotificationManager(
         )
     }
     
+    /**
+     * Optimize bitmap for notification display
+     * Android recommends 256x256dp for notification large icons
+     * @param bitmap Original bitmap to optimize
+     * @return Optimized bitmap for notification display
+     */
+    private fun optimizeBitmapForNotification(bitmap: Bitmap): Bitmap {
+        val targetSize = 256 // Target size for notification large icon
+        
+        // If bitmap is already optimal size, return as-is
+        if (bitmap.width == targetSize && bitmap.height == targetSize) {
+            Log.d("MusicNotificationManager", "🎯 Bitmap already optimal size: ${targetSize}x${targetSize}")
+            return bitmap
+        }
+        
+        // Scale bitmap to target size while maintaining aspect ratio
+        val scaledBitmap = if (bitmap.width != bitmap.height) {
+            // Non-square image - scale to fit target size
+            val scale = targetSize.toFloat() / maxOf(bitmap.width, bitmap.height)
+            val newWidth = (bitmap.width * scale).toInt()
+            val newHeight = (bitmap.height * scale).toInt()
+            
+            Log.d("MusicNotificationManager", "📐 Scaling from ${bitmap.width}x${bitmap.height} to ${newWidth}x${newHeight} (scale: $scale)")
+            Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
+        } else {
+            // Square image - direct scale to target size
+            Log.d("MusicNotificationManager", "📐 Direct scaling from ${bitmap.width}x${bitmap.height} to ${targetSize}x${targetSize}")
+            Bitmap.createScaledBitmap(bitmap, targetSize, targetSize, true)
+        }
+        
+        // Recycle original bitmap to free memory if it's different from the scaled one
+        if (scaledBitmap != bitmap) {
+            bitmap.recycle()
+        }
+        
+        Log.d("MusicNotificationManager", "✨ Final notification bitmap: ${scaledBitmap.width}x${scaledBitmap.height}, config: ${scaledBitmap.config}")
+        return scaledBitmap
+    }
+    
     fun loadAlbumArt(song: Song, onAlbumArtLoaded: () -> Unit) {
         Log.d("MusicNotificationManager", "🎨 === ALBUM ART LOADING DEBUG ===")
         Log.d("MusicNotificationManager", "Song: ${song.title}")
         Log.d("MusicNotificationManager", "Song ID: ${song.id}")
         Log.d("MusicNotificationManager", "Has artwork flag: ${song.hasArtwork}")
-        Log.d("MusicNotificationManager", "Server URL: ${ApiClient.getServerUrl()}")
-        Log.d("MusicNotificationManager", "Auth header present: ${ApiClient.getAuthHeader() != null}")
         
-        // Always try loading album art for debugging (ignore hasArtwork flag)
-        Log.d("MusicNotificationManager", "🚀 Starting coroutine...")
+        // Clear previous artwork to ensure new artwork is loaded
+        clearAlbumArt()
+        Log.d("MusicNotificationManager", "🧹 Cleared previous album art")
         
         coroutineScope.launch {
             Log.d("MusicNotificationManager", "🔄 Inside coroutine - starting album art load")
             try {
-                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-                val authHeader = ApiClient.getAuthHeader()
+                // Use ArtworkUtils to get the correct path (server URL or local file)
+                val artworkPath = ArtworkUtils.getArtworkPath(context, song)
+                Log.d("MusicNotificationManager", "🌐 Artwork path from ArtworkUtils: $artworkPath")
                 
-                Log.d("MusicNotificationManager", "🌐 Attempting to load from: $artworkUrl")
-                Log.d("MusicNotificationManager", "🔐 Auth header: ${authHeader?.take(20)}...")
+                if (artworkPath.isEmpty()) {
+                    Log.w("MusicNotificationManager", "❌ Empty artwork path - no artwork available")
+                    return@launch
+                }
                 
-                if (authHeader != null) {
-                    val bitmap = withContext(Dispatchers.IO) {
-                        try {
-                            Log.d("MusicNotificationManager", "📡 Making HTTP request...")
-                            val connection = URL(artworkUrl).openConnection()
-                            connection.setRequestProperty("Authorization", authHeader)
-                            connection.connectTimeout = 5000
-                            connection.readTimeout = 10000
-                            
-                            Log.d("MusicNotificationManager", "📊 Response code: ${(connection as java.net.HttpURLConnection).responseCode}")
-                            
-                            if (connection.responseCode == 200) {
-                                val inputStream = connection.getInputStream()
-                                val result = BitmapFactory.decodeStream(inputStream)
-                                inputStream.close()
-                                Log.d("MusicNotificationManager", "🖼️ Bitmap decoded: ${result != null}")
-                                if (result != null) {
-                                    Log.d("MusicNotificationManager", "📏 Bitmap size: ${result.width}x${result.height}")
+                val bitmap = withContext(Dispatchers.IO) {
+                    try {
+                        // Configure BitmapFactory options for high-quality loading
+                        val options = BitmapFactory.Options().apply {
+                            inPreferredConfig = Bitmap.Config.ARGB_8888  // Full color depth
+                            inSampleSize = 1  // No downsampling
+                            inScaled = false  // Preserve original resolution
+                            inDither = false  // Better quality
+                            inPreferQualityOverSpeed = true  // Prioritize quality
+                        }
+                        
+                        val rawBitmap = when {
+                            artworkPath.startsWith("file://") -> {
+                                // Load from local file
+                                Log.d("MusicNotificationManager", "📂 Loading from local file")
+                                val filePath = artworkPath.removePrefix("file://")
+                                val file = File(filePath)
+                                if (file.exists()) {
+                                    val result = BitmapFactory.decodeFile(filePath, options)
+                                    Log.d("MusicNotificationManager", "🖼️ Local bitmap decoded: ${result != null}")
+                                    if (result != null) {
+                                        Log.d("MusicNotificationManager", "📏 Raw bitmap size: ${result.width}x${result.height}, config: ${result.config}")
+                                    }
+                                    result
+                                } else {
+                                    Log.w("MusicNotificationManager", "❌ Local file doesn't exist: $filePath")
+                                    null
                                 }
-                                result
-                            } else {
-                                Log.w("MusicNotificationManager", "❌ HTTP ${connection.responseCode}: ${connection.responseMessage}")
+                            }
+                            artworkPath.startsWith("http") -> {
+                                // Load from server
+                                Log.d("MusicNotificationManager", "📡 Loading from server")
+                                val authHeader = ApiClient.getAuthHeader()
+                                if (authHeader != null) {
+                                    val connection = URL(artworkPath).openConnection()
+                                    connection.setRequestProperty("Authorization", authHeader)
+                                    connection.connectTimeout = 5000
+                                    connection.readTimeout = 10000
+                                    
+                                    Log.d("MusicNotificationManager", "📊 Response code: ${(connection as java.net.HttpURLConnection).responseCode}")
+                                    
+                                    if (connection.responseCode == 200) {
+                                        val inputStream = connection.getInputStream()
+                                        val result = BitmapFactory.decodeStream(inputStream, null, options)
+                                        inputStream.close()
+                                        Log.d("MusicNotificationManager", "🖼️ Server bitmap decoded: ${result != null}")
+                                        if (result != null) {
+                                            Log.d("MusicNotificationManager", "📏 Raw bitmap size: ${result.width}x${result.height}, config: ${result.config}")
+                                        }
+                                        result
+                                    } else {
+                                        Log.w("MusicNotificationManager", "❌ HTTP ${connection.responseCode}: ${connection.responseMessage}")
+                                        null
+                                    }
+                                } else {
+                                    Log.e("MusicNotificationManager", "❌ No auth header available for server artwork")
+                                    null
+                                }
+                            }
+                            else -> {
+                                Log.w("MusicNotificationManager", "❌ Unknown artwork path format: $artworkPath")
                                 null
                             }
-                        } catch (e: Exception) {
-                            Log.e("MusicNotificationManager", "💥 Network error: ${e.message}", e)
+                        }
+                        
+                        // Optimize bitmap for notification display (256x256 target)
+                        if (rawBitmap != null) {
+                            optimizeBitmapForNotification(rawBitmap)
+                        } else {
                             null
                         }
+                    } catch (e: Exception) {
+                        Log.e("MusicNotificationManager", "💥 Error loading artwork: ${e.message}", e)
+                        null
                     }
-                    
-                    if (bitmap != null) {
-                        Log.d("MusicNotificationManager", "✅ Album art loaded successfully!")
-                        currentAlbumArt = bitmap
-                        onAlbumArtLoaded()
-                    } else {
-                        Log.w("MusicNotificationManager", "❌ Album art bitmap is null")
-                    }
+                }
+                
+                if (bitmap != null) {
+                    Log.d("MusicNotificationManager", "✅ Album art loaded successfully!")
+                    currentAlbumArt = bitmap
+                    onAlbumArtLoaded()
                 } else {
-                    Log.e("MusicNotificationManager", "❌ No auth header available for album art")
+                    Log.w("MusicNotificationManager", "❌ Album art bitmap is null")
                 }
                 
             } catch (e: Exception) {

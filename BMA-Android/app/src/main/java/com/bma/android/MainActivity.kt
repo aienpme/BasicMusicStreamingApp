@@ -3,6 +3,7 @@ package com.bma.android
 import android.Manifest
 import android.content.*
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -58,6 +59,7 @@ class MainActivity : AppCompatActivity(),
     private var isHandlingAuthFailure = false
     private var preventMiniPlayerUpdates = false
     private var isInNormalMode = false
+    private var hasPerformedStartupConnectivityCheck = false
     
     // Setup activity result launcher for handling QR scanning results
     private val setupActivityLauncher = registerForActivityResult(
@@ -78,6 +80,12 @@ class MainActivity : AppCompatActivity(),
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // EASY FIX: Clear any stale ApiClient state immediately on app start
+        // This happens before ANY components can initialize and use old tokens
+        ApiClient.clearAll()
+        Log.d("MainActivity", "Cleared ApiClient on app start to prevent stale token usage")
+        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -85,6 +93,9 @@ class MainActivity : AppCompatActivity(),
         
         // Reset mini player updates flag in case it was stuck from previous state
         preventMiniPlayerUpdates = false
+        
+        // Reset startup connectivity check flag for new app session
+        hasPerformedStartupConnectivityCheck = false
         
         // Initialize components
         initializeComponents()
@@ -127,6 +138,8 @@ class MainActivity : AppCompatActivity(),
             if (fragmentNavigationManager.currentDisplayMode != FragmentNavigationManager.DisplayMode.NORMAL) {
                 // Reset mini player updates when navigating back to normal mode
                 preventMiniPlayerUpdates = false
+                // Force restore normal state to ensure fragments are visible
+                fragmentNavigationManager.forceRestoreNormalState()
                 when (item.itemId) {
                     R.id.navigation_library -> {
                         fragmentNavigationManager.loadFragment(libraryFragment, item.itemId)
@@ -220,12 +233,20 @@ class MainActivity : AppCompatActivity(),
         val prefs = getSharedPreferences("BMA", Context.MODE_PRIVATE)
         val savedUrl = prefs.getString("server_url", null)
         val savedToken = prefs.getString("auth_token", null)
-
+        
+        Log.d("MainActivity", "Loading connection details - URL: ${savedUrl?.take(30)}, Token: ${savedToken?.take(8)}...")
+        
+        // Note: ApiClient.clearAll() is now called at the start of onCreate()
+        // to prevent any race conditions with background threads
+        
+        // Load the current values from SharedPreferences
         if (!savedUrl.isNullOrEmpty()) {
             ApiClient.setServerUrl(savedUrl)
+            Log.d("MainActivity", "Set server URL from SharedPreferences")
         }
         if (!savedToken.isNullOrEmpty()) {
             ApiClient.setAuthToken(savedToken)
+            Log.d("MainActivity", "Set auth token from SharedPreferences")
         }
         
         // Set up authentication failure callback
@@ -283,6 +304,11 @@ class MainActivity : AppCompatActivity(),
         // Start health check timer
         isInNormalMode = true
         connectionManager.startHealthCheckTimer()
+        
+        // Notify fragments about online mode (important for offline → online transitions)
+        binding.root.post {
+            notifyFragmentsOnlineMode()
+        }
     }
     
     private fun setupOfflineMode() {
@@ -340,6 +366,30 @@ class MainActivity : AppCompatActivity(),
             }
         } catch (e: Exception) {
             Log.e("MainActivity", "Error notifying fragments about offline mode", e)
+        }
+    }
+    
+    private fun notifyFragmentsOnlineMode() {
+        Log.d("MainActivity", "Notifying fragments about online mode")
+        
+        try {
+            // Notify all fragments that we're now in online mode
+            if (libraryFragment.isAdded && libraryFragment.view != null) {
+                (libraryFragment as? OfflineModeAware)?.onOfflineModeChanged(false)
+                Log.d("MainActivity", "Notified LibraryFragment about online mode")
+            }
+            
+            if (searchFragment.isAdded && searchFragment.view != null) {
+                (searchFragment as? OfflineModeAware)?.onOfflineModeChanged(false)
+                Log.d("MainActivity", "Notified SearchFragment about online mode")
+            }
+            
+            if (settingsFragment.isAdded && settingsFragment.view != null) {
+                (settingsFragment as? OfflineModeAware)?.onOfflineModeChanged(false)
+                Log.d("MainActivity", "Notified SettingsFragment about online mode")
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error notifying fragments about online mode", e)
         }
     }
     
@@ -430,7 +480,12 @@ class MainActivity : AppCompatActivity(),
     
     override fun onNoCredentials() {
         runOnUiThread {
-            redirectToSetup()
+            // Don't redirect to setup if offline mode is active
+            if (!OfflineModeManager.isOfflineMode()) {
+                redirectToSetup()
+            } else {
+                Log.d("MainActivity", "onNoCredentials: Offline mode active, skipping setup redirect")
+            }
         }
     }
     
@@ -443,6 +498,13 @@ class MainActivity : AppCompatActivity(),
     override fun onConnectionLost() {
         runOnUiThread {
             handleConnectionLost()
+        }
+    }
+    
+    override fun onConnectionDiagnostics(result: NetworkDiagnostics.DiagnosticResult) {
+        runOnUiThread {
+            Log.d("MainActivity", "Connection diagnostics: ${result.issue} - ${result.message}")
+            dialogManager.showConnectionDiagnosticDialog(result)
         }
     }
     
@@ -472,6 +534,98 @@ class MainActivity : AppCompatActivity(),
     override fun onBypassConnection() {
         Log.d("MainActivity", "User chose to bypass connection check")
         setupNormalMode()
+    }
+    
+    override fun onOpenTailscale() {
+        Log.d("MainActivity", "User chose to open Tailscale")
+        try {
+            val intent = packageManager.getLaunchIntentForPackage("com.tailscale.ipn")
+            if (intent != null) {
+                startActivity(intent)
+            } else {
+                Log.e("MainActivity", "Could not find Tailscale app to open")
+                // Fallback to retry connection
+                loadConnectionDetails()
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to open Tailscale", e)
+            // Fallback to retry connection
+            loadConnectionDetails()
+        }
+    }
+    
+    override fun onInstallTailscale() {
+        Log.d("MainActivity", "User chose to install Tailscale")
+        try {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("market://details?id=com.tailscale.ipn")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: android.content.ActivityNotFoundException) {
+            // Fallback to browser if Play Store app is not installed
+            try {
+                val intent = Intent(Intent.ACTION_VIEW).apply {
+                    data = Uri.parse("https://play.google.com/store/apps/details?id=com.tailscale.ipn")
+                }
+                startActivity(intent)
+            } catch (ex: Exception) {
+                Log.e("MainActivity", "Failed to open Play Store for Tailscale", ex)
+                // Fallback to offline mode suggestion
+                onOfflineModeSelected()
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Failed to install Tailscale", e)
+            // Fallback to offline mode suggestion
+            onOfflineModeSelected()
+        }
+    }
+    
+    /**
+     * Performs startup connectivity check similar to Settings.exitOfflineMode()
+     * Only runs once per app session and only when not in offline mode
+     */
+    fun performStartupConnectivityCheck() {
+        // Skip if already performed this session
+        if (hasPerformedStartupConnectivityCheck) {
+            Log.d("MainActivity", "Startup connectivity check already performed this session")
+            return
+        }
+        
+        // Skip if already in offline mode
+        if (OfflineModeManager.isOfflineMode()) {
+            Log.d("MainActivity", "Skipping startup connectivity check - already in offline mode")
+            hasPerformedStartupConnectivityCheck = true
+            return
+        }
+        
+        // Mark as performed to prevent duplicate checks
+        hasPerformedStartupConnectivityCheck = true
+        
+        Log.d("MainActivity", "Performing startup connectivity check...")
+        
+        lifecycleScope.launch {
+            try {
+                // Run comprehensive network diagnostics (same as Settings.exitOfflineMode)
+                val networkDiagnostics = NetworkDiagnostics(this@MainActivity)
+                val diagnosticResult = networkDiagnostics.diagnoseConnectionFailure()
+                
+                if (diagnosticResult.hasIssue) {
+                    // Connectivity/Tailscale issues detected - show specific error dialog
+                    Log.d("MainActivity", "Startup diagnostics failed: ${diagnosticResult.issue}")
+                    runOnUiThread {
+                        dialogManager.showConnectionDiagnosticDialog(diagnosticResult)
+                    }
+                } else {
+                    // All connectivity checks passed - no action needed
+                    Log.d("MainActivity", "Startup diagnostics passed - connectivity is good")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error during startup connectivity check", e)
+                // Don't show error dialogs for startup check failures - fail silently
+                // User can still use the app normally or manually check from Settings
+            }
+        }
     }
     
     // Music service listener methods

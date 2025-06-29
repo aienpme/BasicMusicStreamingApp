@@ -102,6 +102,7 @@ class DownloadItemAdapter<T>(
     }
     
     fun filter(query: String) {
+        android.util.Log.d("DownloadItemAdapter", "Filter called with query: '$query', allItems.size: ${allItems.size}")
         filteredItems = if (query.isBlank()) {
             allItems
         } else {
@@ -109,22 +110,29 @@ class DownloadItemAdapter<T>(
                 when (itemType) {
                     ItemType.SONG -> {
                         val song = item as Song
-                        song.title.contains(query, ignoreCase = true) ||
+                        val matches = song.title.contains(query, ignoreCase = true) ||
                         song.artist.contains(query, ignoreCase = true) ||
                         song.album.contains(query, ignoreCase = true)
+                        android.util.Log.d("DownloadItemAdapter", "Song '${song.title}' matches '$query': $matches")
+                        matches
                     }
                     ItemType.ALBUM -> {
                         val album = item as Album
-                        album.name.contains(query, ignoreCase = true) ||
+                        val matches = album.name.contains(query, ignoreCase = true) ||
                         (album.artist ?: "").contains(query, ignoreCase = true)
+                        android.util.Log.d("DownloadItemAdapter", "Album '${album.name}' matches '$query': $matches")
+                        matches
                     }
                     ItemType.PLAYLIST -> {
                         val playlist = item as Playlist
-                        playlist.name.contains(query, ignoreCase = true)
+                        val matches = playlist.name.contains(query, ignoreCase = true)
+                        android.util.Log.d("DownloadItemAdapter", "Playlist '${playlist.name}' matches '$query': $matches")
+                        matches
                     }
                 }
             }
         }
+        android.util.Log.d("DownloadItemAdapter", "Filter result: ${filteredItems.size} items after filtering")
         notifyDataSetChanged()
     }
     
@@ -136,6 +144,21 @@ class DownloadItemAdapter<T>(
     
     fun clearAllSelections() {
         selectedItems.clear()
+        notifyDataSetChanged()
+    }
+    
+    fun updateSelection(itemId: String, isSelected: Boolean) {
+        if (isSelected) {
+            selectedItems.add(itemId)
+        } else {
+            selectedItems.remove(itemId)
+        }
+        notifyDataSetChanged()
+    }
+    
+    fun syncSelections(fragmentSelections: Set<String>) {
+        selectedItems.clear()
+        selectedItems.addAll(fragmentSelections)
         notifyDataSetChanged()
     }
     
@@ -209,7 +232,7 @@ class DownloadItemAdapter<T>(
                 binding.selectionCheckbox.visibility = View.GONE
                 binding.downloadStatusIcon.visibility = View.VISIBLE
                 binding.downloadStatusText.visibility = View.VISIBLE
-                binding.downloadStatusIcon.setImageResource(android.R.drawable.ic_menu_delete)
+                binding.downloadStatusIcon.setImageResource(com.bma.android.R.drawable.ic_delete_modern)
                 binding.downloadStatusText.text = "Downloaded"
                 
                 // Set up delete functionality
@@ -317,7 +340,7 @@ class DownloadItemAdapter<T>(
                 binding.selectionCheckbox.visibility = View.GONE
                 binding.downloadStatusIcon.visibility = View.VISIBLE
                 binding.downloadStatusText.visibility = View.VISIBLE
-                binding.downloadStatusIcon.setImageResource(android.R.drawable.ic_menu_delete)
+                binding.downloadStatusIcon.setImageResource(com.bma.android.R.drawable.ic_delete_modern)
                 binding.downloadStatusText.text = "Downloaded"
                 
                 // Set up delete functionality for album
@@ -438,7 +461,7 @@ class DownloadItemAdapter<T>(
                 binding.selectionCheckbox.visibility = View.GONE
                 binding.downloadStatusIcon.visibility = View.VISIBLE
                 binding.downloadStatusText.visibility = View.VISIBLE
-                binding.downloadStatusIcon.setImageResource(android.R.drawable.ic_menu_delete)
+                binding.downloadStatusIcon.setImageResource(com.bma.android.R.drawable.ic_delete_modern)
                 binding.downloadStatusText.text = "Downloaded"
                 
                 // Set up delete functionality for playlist

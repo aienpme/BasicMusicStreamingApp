@@ -85,6 +85,12 @@
         <activity
             android:name=".ui.downloads.DownloadSelectionActivity"
             android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:windowSoftInputMode="adjustPan" />
+            
+        <activity
+            android:name=".ui.stats.StreamingStatsActivity"
+            android:exported="false"
             android:parentActivityName=".MainActivity" />
             
         <service

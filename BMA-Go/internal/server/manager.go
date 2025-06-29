@@ -392,6 +392,21 @@ func (sm *ServerManager) GeneratePairingToken(expiresInMinutes int) string {
 	sm.tokensMutex.Lock()
 	defer sm.tokensMutex.Unlock()
 	
+	// If we already have a valid current token and connected devices, reuse it
+	if sm.currentPairingToken != "" {
+		if expiration, exists := sm.pairingTokens[sm.currentPairingToken]; exists && time.Now().Before(expiration) {
+			// Check if we have connected devices using this token
+			sm.devicesMutex.RLock()
+			hasConnectedDevices := len(sm.connectedDevices) > 0
+			sm.devicesMutex.RUnlock()
+			
+			if hasConnectedDevices {
+				log.Printf("🔄 Reusing existing token: %s... (devices already connected)", sm.currentPairingToken[:8])
+				return sm.currentPairingToken
+			}
+		}
+	}
+	
 	token := uuid.New().String()
 	expiration := time.Now().Add(time.Duration(expiresInMinutes) * time.Minute)
 	
@@ -401,7 +416,10 @@ func (sm *ServerManager) GeneratePairingToken(expiresInMinutes int) string {
 	// Clean up expired tokens
 	sm.cleanupExpiredTokensUnsafe()
 	
-	log.Printf("🔑 Generated pairing token: %s... (expires in %d minutes)", token[:8], expiresInMinutes)
+	// Clear QR cache when new token is generated (prevents stale token issues)
+	go sm.ClearQRCache()
+	
+	log.Printf("🔑 Generated NEW pairing token: %s... (expires in %d minutes, now have %d tokens)", token[:8], expiresInMinutes, len(sm.pairingTokens))
 	return token
 }
 
@@ -412,6 +430,12 @@ func (sm *ServerManager) IsValidToken(token string) bool {
 	
 	expiration, exists := sm.pairingTokens[token]
 	if !exists {
+		log.Printf("🔍 [DEBUG] Token %s... not found in pairingTokens map (has %d tokens)", token[:8], len(sm.pairingTokens))
+		// Debug: Show what tokens ARE in the map
+		log.Printf("🔍 [DEBUG] Available tokens in map:")
+		for storedToken := range sm.pairingTokens {
+			log.Printf("🔍 [DEBUG]   - %s...", storedToken[:8])
+		}
 		return false
 	}
 	
@@ -440,6 +464,8 @@ func (sm *ServerManager) revokePairingToken(token string) {
 	delete(sm.pairingTokens, token)
 	if sm.currentPairingToken == token {
 		sm.currentPairingToken = ""
+		// Clear QR cache when current token is revoked to prevent stale QR codes
+		go sm.ClearQRCache()
 	}
 	log.Printf("🔒 Revoked pairing token: %s...", token[:8])
 }
@@ -452,6 +478,9 @@ func (sm *ServerManager) revokeAllTokens() {
 	sm.pairingTokens = make(map[string]time.Time)
 	sm.currentPairingToken = ""
 	log.Println("🔒 All pairing tokens revoked")
+	
+	// Clear QR cache when all tokens are revoked to prevent stale QR codes
+	go sm.ClearQRCache()
 }
 
 // cleanupExpiredTokensUnsafe removes expired tokens (assumes write lock held)
@@ -472,6 +501,11 @@ func (sm *ServerManager) GetCurrentPairingToken() string {
 	sm.tokensMutex.RLock()
 	defer sm.tokensMutex.RUnlock()
 	return sm.currentPairingToken
+}
+
+// RevokePairingToken removes a specific token (public method for UI)
+func (sm *ServerManager) RevokePairingToken(token string) {
+	sm.revokePairingToken(token)
 }
 
 // Router setup
@@ -624,14 +658,34 @@ func (sm *ServerManager) PreloadQRCode() {
 	}()
 }
 
-// GetPairingDataAsJSON returns the pairing data as JSON
+// GetPairingDataAsJSON returns the pairing data as JSON using existing or new token
 func (sm *ServerManager) GetPairingDataAsJSON() (string, error) {
 	if !sm.IsRunning {
 		return "", fmt.Errorf("server is not running")
 	}
 
-	token := sm.GeneratePairingToken(60) // 60-minute expiration
-	expiresAt := time.Now().Add(60 * time.Minute)
+	// Use existing valid token or generate new one
+	var token string
+	var expiresAt time.Time
+	
+	sm.tokensMutex.RLock()
+	if sm.currentPairingToken != "" {
+		if expiration, exists := sm.pairingTokens[sm.currentPairingToken]; exists && time.Now().Before(expiration) {
+			// Use existing valid token
+			token = sm.currentPairingToken
+			expiresAt = expiration
+			log.Printf("🔄 Using existing token for QR: %s...", token[:8])
+		}
+	}
+	sm.tokensMutex.RUnlock()
+	
+	// Generate new token only if no valid one exists
+	if token == "" {
+		token = sm.GeneratePairingToken(60) // 60-minute expiration
+		expiresAt = time.Now().Add(60 * time.Minute)
+		log.Printf("🔑 Generated new token for QR: %s...", token[:8])
+	}
+
 	serverURL := sm.GetPreferredURL()
 
 	pairingData := models.PairingData{

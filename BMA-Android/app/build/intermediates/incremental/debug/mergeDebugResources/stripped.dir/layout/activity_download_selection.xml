@@ -45,30 +45,36 @@
 
     <!-- Action buttons -->
     <LinearLayout
+        android:id="@+id/button_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="16dp"
-        android:background="@drawable/rounded_background">
+        android:background="@drawable/rounded_background"
+        android:visibility="gone">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/download_all_button"
-            style="@style/Widget.BMA.Button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="📚 Download All Library"
-            android:backgroundTint="@color/primary" />
+            style="@style/Widget.BMA.Button.Primary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="Download All Library"
+            app:icon="@drawable/ic_download_all"
+            app:iconGravity="start"
+            app:iconPadding="8dp"
+            app:iconSize="20dp" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/download_selected_button"
-            style="@style/Widget.BMA.Button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="⬇️ Download Selected" />
+            style="@style/Widget.BMA.Button.Secondary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select to Download"
+            app:icon="@drawable/ic_download_selected"
+            app:iconGravity="start"
+            app:iconPadding="8dp"
+            app:iconSize="20dp" />
 
     </LinearLayout>
 

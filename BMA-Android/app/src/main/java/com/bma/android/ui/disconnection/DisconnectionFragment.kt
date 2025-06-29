@@ -79,9 +79,8 @@ class DisconnectionFragment : Fragment() {
             .remove("token_expires_at")
             .apply()
         
-        // Clear from ApiClient as well
-        ApiClient.setServerUrl("")
-        ApiClient.setAuthToken(null)
+        // Complete ApiClient state reset (prevents re-pairing crashes)
+        ApiClient.clearAll()
         
         val intent = Intent(requireContext(), SetupActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

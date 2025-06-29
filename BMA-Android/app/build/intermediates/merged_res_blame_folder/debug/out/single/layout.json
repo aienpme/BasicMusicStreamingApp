@@ -24,12 +24,12 @@
         "source": "com.bma.android.app-main-46:/layout/item_song_in_album.xml"
     },
     {
-        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_queue_current_song.xml",
-        "source": "com.bma.android.app-main-46:/layout/item_queue_current_song.xml"
-    },
-    {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_playlist_selectable.xml",
         "source": "com.bma.android.app-main-46:/layout/item_playlist_selectable.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_song_stats.xml",
+        "source": "com.bma.android.app-main-46:/layout/item_song_stats.xml"
     },
     {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/dialog_playlist_selection.xml",
@@ -50,6 +50,10 @@
     {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/activity_album_detail.xml",
         "source": "com.bma.android.app-main-46:/layout/activity_album_detail.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_album_stats.xml",
+        "source": "com.bma.android.app-main-46:/layout/item_album_stats.xml"
     },
     {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/mini_player.xml",
@@ -108,6 +112,14 @@
         "source": "com.bma.android.app-main-46:/layout/fragment_album_detail.xml"
     },
     {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_artist_stats.xml",
+        "source": "com.bma.android.app-main-46:/layout/item_artist_stats.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/fragment_stats_list.xml",
+        "source": "com.bma.android.app-main-46:/layout/fragment_stats_list.xml"
+    },
+    {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_playlist.xml",
         "source": "com.bma.android.app-main-46:/layout/item_playlist.xml"
     },
@@ -124,12 +136,20 @@
         "source": "com.bma.android.app-main-46:/layout/item_queue_song.xml"
     },
     {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/fragment_queue_bottom_sheet.xml",
+        "source": "com.bma.android.app-main-46:/layout/fragment_queue_bottom_sheet.xml"
+    },
+    {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/activity_queue.xml",
         "source": "com.bma.android.app-main-46:/layout/activity_queue.xml"
     },
     {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/fragment_library.xml",
         "source": "com.bma.android.app-main-46:/layout/fragment_library.xml"
+    },
+    {
+        "merged": "com.bma.android.app-mergeDebugResources-43:/layout/activity_streaming_stats.xml",
+        "source": "com.bma.android.app-main-46:/layout/activity_streaming_stats.xml"
     },
     {
         "merged": "com.bma.android.app-mergeDebugResources-43:/layout/item_song_selectable.xml",

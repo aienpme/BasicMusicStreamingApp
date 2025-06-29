@@ -4,17 +4,9 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="?attr/colorPrimary">
-    <!-- Simple shuffle icon with crossed lines -->
+    
+    <!-- Modern Spotify-style shuffle ON - simple crossed arrows -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M16,4h3v3l-2.5,-2.5L13,8 11,6l3.5,-3.5L16,4z"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M5,7h4l2,2 -2,2H5c-0.55,0 -1,-0.45 -1,-1V8C4,7.45 4.45,7 5,7z"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M16,20h3v-3l-2.5,2.5L13,16l-2,2l3.5,3.5L16,20z"/>
-    <path
-        android:fillColor="@android:color/white"
-        android:pathData="M5,13h4l2,2 -2,2H5c-0.55,0 -1,-0.45 -1,-1v-2C4,13.45 4.45,13 5,13z"/>
+        android:pathData="M10.59,9.17L5.41,4 4,5.41l5.17,5.17 1.42,-1.41zM14.5,4l2.04,2.04L4,18.59 5.41,20 17.96,7.46 20,9.5V4h-5.5zM14.83,13.41l-1.41,1.41 3.13,3.13L14.5,20H20v-5.5l-2.04,2.04 -3.13,-3.13z"/>
 </vector>

@@ -25,9 +25,6 @@ public final class ActivityQrScannerBinding implements ViewBinding {
   public final Button cancelButton;
 
   @NonNull
-  public final TextView instructionText;
-
-  @NonNull
   public final PreviewView previewView;
 
   @NonNull
@@ -37,11 +34,10 @@ public final class ActivityQrScannerBinding implements ViewBinding {
   public final TextView statusText;
 
   private ActivityQrScannerBinding(@NonNull ConstraintLayout rootView, @NonNull Button cancelButton,
-      @NonNull TextView instructionText, @NonNull PreviewView previewView,
-      @NonNull View scanningOverlay, @NonNull TextView statusText) {
+      @NonNull PreviewView previewView, @NonNull View scanningOverlay,
+      @NonNull TextView statusText) {
     this.rootView = rootView;
     this.cancelButton = cancelButton;
-    this.instructionText = instructionText;
     this.previewView = previewView;
     this.scanningOverlay = scanningOverlay;
     this.statusText = statusText;
@@ -80,12 +76,6 @@ public final class ActivityQrScannerBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.instructionText;
-      TextView instructionText = ViewBindings.findChildViewById(rootView, id);
-      if (instructionText == null) {
-        break missingId;
-      }
-
       id = R.id.previewView;
       PreviewView previewView = ViewBindings.findChildViewById(rootView, id);
       if (previewView == null) {
@@ -104,8 +94,8 @@ public final class ActivityQrScannerBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityQrScannerBinding((ConstraintLayout) rootView, cancelButton,
-          instructionText, previewView, scanningOverlay, statusText);
+      return new ActivityQrScannerBinding((ConstraintLayout) rootView, cancelButton, previewView,
+          scanningOverlay, statusText);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

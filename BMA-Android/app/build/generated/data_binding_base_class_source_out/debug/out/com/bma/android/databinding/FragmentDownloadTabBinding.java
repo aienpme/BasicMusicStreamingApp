@@ -5,7 +5,9 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -14,7 +16,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.bma.android.R;
-import com.google.android.material.textfield.TextInputEditText;
 import java.lang.NullPointerException;
 import java.lang.Override;
 import java.lang.String;
@@ -30,6 +31,9 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
   public final TextView downloadSizeText;
 
   @NonNull
+  public final LinearLayout downloadStatusCard;
+
+  @NonNull
   public final TextView downloadStatusText;
 
   @NonNull
@@ -42,13 +46,13 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
   public final RecyclerView itemsRecyclerView;
 
   @NonNull
-  public final TextInputEditText searchEditText;
+  public final EditText searchEditText;
 
   @NonNull
   public final CheckBox selectAllCheckbox;
 
   @NonNull
-  public final TextView tabIcon;
+  public final ImageView tabIcon;
 
   @NonNull
   public final TextView tabSubtitle;
@@ -58,13 +62,15 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
 
   private FragmentDownloadTabBinding(@NonNull LinearLayout rootView,
       @NonNull ImageButton deleteAllButton, @NonNull TextView downloadSizeText,
-      @NonNull TextView downloadStatusText, @NonNull LinearLayout emptyState,
-      @NonNull TextView emptyStateText, @NonNull RecyclerView itemsRecyclerView,
-      @NonNull TextInputEditText searchEditText, @NonNull CheckBox selectAllCheckbox,
-      @NonNull TextView tabIcon, @NonNull TextView tabSubtitle, @NonNull TextView tabTitle) {
+      @NonNull LinearLayout downloadStatusCard, @NonNull TextView downloadStatusText,
+      @NonNull LinearLayout emptyState, @NonNull TextView emptyStateText,
+      @NonNull RecyclerView itemsRecyclerView, @NonNull EditText searchEditText,
+      @NonNull CheckBox selectAllCheckbox, @NonNull ImageView tabIcon,
+      @NonNull TextView tabSubtitle, @NonNull TextView tabTitle) {
     this.rootView = rootView;
     this.deleteAllButton = deleteAllButton;
     this.downloadSizeText = downloadSizeText;
+    this.downloadStatusCard = downloadStatusCard;
     this.downloadStatusText = downloadStatusText;
     this.emptyState = emptyState;
     this.emptyStateText = emptyStateText;
@@ -115,6 +121,12 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.download_status_card;
+      LinearLayout downloadStatusCard = ViewBindings.findChildViewById(rootView, id);
+      if (downloadStatusCard == null) {
+        break missingId;
+      }
+
       id = R.id.download_status_text;
       TextView downloadStatusText = ViewBindings.findChildViewById(rootView, id);
       if (downloadStatusText == null) {
@@ -140,7 +152,7 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
       }
 
       id = R.id.search_edit_text;
-      TextInputEditText searchEditText = ViewBindings.findChildViewById(rootView, id);
+      EditText searchEditText = ViewBindings.findChildViewById(rootView, id);
       if (searchEditText == null) {
         break missingId;
       }
@@ -152,7 +164,7 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
       }
 
       id = R.id.tab_icon;
-      TextView tabIcon = ViewBindings.findChildViewById(rootView, id);
+      ImageView tabIcon = ViewBindings.findChildViewById(rootView, id);
       if (tabIcon == null) {
         break missingId;
       }
@@ -170,8 +182,8 @@ public final class FragmentDownloadTabBinding implements ViewBinding {
       }
 
       return new FragmentDownloadTabBinding((LinearLayout) rootView, deleteAllButton,
-          downloadSizeText, downloadStatusText, emptyState, emptyStateText, itemsRecyclerView,
-          searchEditText, selectAllCheckbox, tabIcon, tabSubtitle, tabTitle);
+          downloadSizeText, downloadStatusCard, downloadStatusText, emptyState, emptyStateText,
+          itemsRecyclerView, searchEditText, selectAllCheckbox, tabIcon, tabSubtitle, tabTitle);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

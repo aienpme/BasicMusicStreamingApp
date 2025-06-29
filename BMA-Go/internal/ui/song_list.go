@@ -1,11 +1,15 @@
 package ui
 
 import (
-	"fmt"
+	"bytes"
+	"image"
+	"image/color"
 	"log"
+	"sync"
 	"time"
 	
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	
@@ -15,25 +19,119 @@ import (
 
 // SongListView displays the music library with album folder organization
 type SongListView struct {
-	musicLibrary  *models.MusicLibrary
-	content       *fyne.Container
-	folderButton  *customTheme.ModernButton
-	songList      *widget.List
-	noMusicCard   *customTheme.ModernCard
-	parentWindow  fyne.Window
-	centerStack   *fyne.Container  // Stack layout for switching between views
+	musicLibrary    *models.MusicLibrary
+	content         *fyne.Container
+	folderButton    *customTheme.ModernButton
+	songList        *widget.List
+	noMusicCard     *customTheme.ModernCard
+	parentWindow    fyne.Window
+	centerStack     *fyne.Container  // Stack layout for switching between views
 	
 	// Animation state
-	isAnimating   bool
+	isAnimating     bool
+	
+	// Artwork cache
+	artworkCache    map[string]*canvas.Image
+	artworkMutex    sync.RWMutex
+	placeholderImg  *canvas.Image
 }
 
 // NewSongListView creates a new song list view
 func NewSongListView(musicLibrary *models.MusicLibrary) *SongListView {
 	slv := &SongListView{
 		musicLibrary: musicLibrary,
+		artworkCache: make(map[string]*canvas.Image),
 	}
+	slv.createPlaceholderImage()
 	slv.initialize()
 	return slv
+}
+
+// createPlaceholderImage creates a simple placeholder image for albums without artwork
+func (slv *SongListView) createPlaceholderImage() {
+	// Create a more visible placeholder image for debugging
+	img := image.NewRGBA(image.Rect(0, 0, 60, 60))
+	
+	// Create a bright red placeholder so we can easily see it
+	redColor := color.RGBA{R: 255, G: 0, B: 0, A: 255}
+	whiteColor := color.RGBA{R: 255, G: 255, B: 255, A: 255}
+	
+	for y := 0; y < 60; y++ {
+		for x := 0; x < 60; x++ {
+			// Create a simple pattern - red background with white border
+			if x < 2 || x >= 58 || y < 2 || y >= 58 {
+				img.Set(x, y, whiteColor)
+			} else {
+				img.Set(x, y, redColor)
+			}
+		}
+	}
+	
+	slv.placeholderImg = canvas.NewImageFromImage(img)
+	slv.placeholderImg.FillMode = canvas.ImageFillContain
+}
+
+// getDisplayItemArtwork retrieves or creates artwork for a display item (album or folder)
+func (slv *SongListView) getDisplayItemArtwork(item models.DisplayItem) *canvas.Image {
+	// Use item ID as cache key
+	itemID := item.GetID()
+	
+	log.Printf("🎨 [ARTWORK] Getting artwork for item: %s (ID: %s, folder: %t)", item.GetName(), itemID, item.IsFolder())
+	
+	// Check cache first
+	slv.artworkMutex.RLock()
+	if cachedImg, exists := slv.artworkCache[itemID]; exists {
+		slv.artworkMutex.RUnlock()
+		// Check if cached image is placeholder or real artwork
+		if cachedImg == slv.placeholderImg {
+			log.Printf("🎨 [ARTWORK] Cache hit for item: %s (PLACEHOLDER)", item.GetName())
+		} else {
+			log.Printf("🎨 [ARTWORK] Cache hit for item: %s (REAL ARTWORK)", item.GetName())
+		}
+		return cachedImg
+	}
+	slv.artworkMutex.RUnlock()
+	
+	log.Printf("🎨 [ARTWORK] Cache miss for item: %s, checking %d songs for artwork", item.GetName(), len(item.GetSongs()))
+	
+	// Try to get artwork from item
+	artworkData := item.GetArtwork()
+	if len(artworkData) == 0 {
+		log.Printf("🎨 [ARTWORK] No artwork data found for item: %s, using placeholder", item.GetName())
+		return slv.placeholderImg
+	}
+	
+	log.Printf("🎨 [ARTWORK] Found artwork data for item: %s (%d bytes)", item.GetName(), len(artworkData))
+	
+	// Create image from artwork data
+	reader := bytes.NewReader(artworkData)
+	img, format, err := image.Decode(reader)
+	if err != nil {
+		log.Printf("⚠️ [ARTWORK] Failed to decode artwork for item %s: %v", item.GetName(), err)
+		return slv.placeholderImg
+	}
+	
+	log.Printf("🎨 [ARTWORK] Successfully decoded %s artwork for item: %s", format, item.GetName())
+	
+	// Create Fyne canvas image
+	canvasImg := canvas.NewImageFromImage(img)
+	canvasImg.FillMode = canvas.ImageFillContain
+	
+	// Cache the image
+	slv.artworkMutex.Lock()
+	slv.artworkCache[itemID] = canvasImg
+	slv.artworkMutex.Unlock()
+	
+	log.Printf("🎨 [ARTWORK] Cached artwork for item: %s", item.GetName())
+	
+	return canvasImg
+}
+
+// getAlbumArtwork retrieves or creates artwork for an album (with caching) - DEPRECATED, use getDisplayItemArtwork
+func (slv *SongListView) getAlbumArtwork(album *models.Album) *canvas.Image {
+	// Convert album to AlbumItem and use new method
+	albumItem := &models.AlbumItem{Album: album}
+	return slv.getDisplayItemArtwork(albumItem)
 }
 
 // initialize sets up the song list view components
@@ -55,38 +153,42 @@ func (slv *SongListView) initialize() {
 	)
 	slv.noMusicCard = customTheme.NewModernCard("Welcome to BMA", "Let's get your music ready", noMusicLabel)
 
-	// Album list (displays albums instead of individual songs)
+	// Display list (shows both albums and folders)
 	slv.songList = widget.NewList(
 		func() int {
-			// Return the actual number of albums
-			return slv.musicLibrary.GetAlbumCount()
+			// Return the actual number of display items (albums + folders)
+			return slv.musicLibrary.GetDisplayItemCount()
 		},
 		func() fyne.CanvasObject {
-			// Create modern card template for albums
-			albumCard := customTheme.NewModernCard("Album Name", "Artist • X tracks", nil)
-			return albumCard
+			// Create modern card template for display items (artwork will be set in update function)
+			displayCard := customTheme.NewModernCardWithArtwork("Item Name", "Type • X tracks", nil, slv.placeholderImg)
+			return displayCard
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
-			// Update album item with actual data
-			albums := slv.musicLibrary.GetAlbums()
-			log.Printf("🎵 [DEBUG] Updating album item %d, total albums: %d", id, len(albums))
+			// Update display item with actual data
+			displayItems := slv.musicLibrary.GetDisplayItems()
+			log.Printf("🎵 [DEBUG] Updating display item %d, total items: %d", id, len(displayItems))
 			
-			if id < len(albums) {
-				album := albums[id]
+			if id < len(displayItems) {
+				item := displayItems[id]
 				if card, ok := obj.(*customTheme.ModernCard); ok {
-					trackText := "tracks"
-					if album.TrackCount() == 1 {
-						trackText = "track"
-					}
-					log.Printf("🎵 [DEBUG] Setting album %d: %s - %s (%d tracks)", id, album.Artist, album.Name, album.TrackCount())
-					card.Title = album.Name
-					card.Subtitle = album.Artist + " • " + fmt.Sprintf("%d %s", album.TrackCount(), trackText)
+					log.Printf("🎵 [DEBUG] Setting display item %d: %s (folder: %t)", id, item.GetName(), item.IsFolder())
+					
+					// Update card content
+					card.Title = item.GetName()
+					card.Subtitle = item.GetSubtitle()
+					
+					// Update artwork
+					artwork := slv.getDisplayItemArtwork(item)
+					card.Artwork = artwork
+					log.Printf("🎨 [ARTWORK] Set artwork for item %s (artwork is placeholder: %t)", item.GetName(), artwork == slv.placeholderImg)
+					
 					card.Refresh()
 				} else {
-					log.Printf("❌ [DEBUG] Album item %d is not a ModernCard", id)
+					log.Printf("❌ [DEBUG] Display item %d is not a ModernCard", id)
 				}
 			} else {
-				log.Printf("⚠️ [DEBUG] Album item %d out of bounds (albums: %d)", id, len(albums))
+				log.Printf("⚠️ [DEBUG] Display item %d out of bounds (items: %d)", id, len(displayItems))
 			}
 		},
 	)
@@ -105,10 +207,13 @@ func (slv *SongListView) initialize() {
 	// Initially show the appropriate content
 	slv.updateCenterStack()
 
-	// Main content area - use VBox for compact layout that doesn't expand unnecessarily
-	slv.content = container.NewVBox(
-		headerContent,
-		slv.centerStack,
+	// Main content area - use Border layout to give list maximum vertical space
+	slv.content = container.NewBorder(
+		headerContent,    // top - header gets only the space it needs
+		nil,             // bottom
+		nil,             // left  
+		nil,             // right
+		slv.centerStack, // center - list gets all remaining space
 	)
 	
 	// Do an initial refresh in case music is already loaded
@@ -126,30 +231,18 @@ func (slv *SongListView) createCenterContent() fyne.CanvasObject {
 
 // updateCenterStack updates the center stack to show the appropriate view
 func (slv *SongListView) updateCenterStack() {
-	albumCount := slv.musicLibrary.GetAlbumCount()
-	log.Printf("🎵 [DEBUG] updateCenterStack called, album count: %d", albumCount)
+	displayItemCount := slv.musicLibrary.GetDisplayItemCount()
+	log.Printf("🎵 [DEBUG] updateCenterStack called, display item count: %d", displayItemCount)
 	
 	// Clear the stack
 	slv.centerStack.Objects = nil
 	
 	// Add the appropriate content
-	if albumCount > 0 {
-		log.Println("🎵 [DEBUG] Showing album list")
-		// Create a fixed-size container that BorderContainer will respect
-		// Each album card is roughly 85px tall, so 5 albums = ~425px
-		constrainedContainer := container.NewWithoutLayout(slv.songList)
-		
-		// Set both the container and list to the same constrained size
-		containerSize := fyne.NewSize(600, 425)
-		constrainedContainer.Resize(containerSize)
-		slv.songList.Resize(containerSize)
-		slv.songList.Move(fyne.NewPos(0, 0))
-		
-		// Wrap in VBox to prevent BorderContainer from expanding it
-		wrappedContainer := container.NewVBox(constrainedContainer)
-		
-		slv.centerStack.Add(wrappedContainer)
-		// Also refresh the album list data
+	if displayItemCount > 0 {
+		log.Println("🎵 [DEBUG] Showing display list (albums + folders)")
+		// Let the song list use available space directly
+		slv.centerStack.Add(slv.songList)
+		// Also refresh the display list data
 		slv.songList.Refresh()
 	} else {
 		log.Println("🎵 [DEBUG] Showing no music card")
@@ -178,19 +271,21 @@ func (slv *SongListView) startLibraryListener() {
 	slv.musicLibrary.SetLibraryChangedCallback(func() {
 		log.Println("🎵 [DEBUG] Library changed callback triggered in SongListView")
 		
-		// Debug: Log current album count
+		// Debug: Log current display item count
+		displayItemCount := slv.musicLibrary.GetDisplayItemCount()
 		albumCount := slv.musicLibrary.GetAlbumCount()
-		log.Printf("🎵 [DEBUG] Album count in callback: %d", albumCount)
+		log.Printf("🎵 [DEBUG] Display item count in callback: %d (%d albums)", displayItemCount, albumCount)
 		
-		// Debug: Log first few albums if available
-		if albumCount > 0 {
-			albums := slv.musicLibrary.GetAlbums()
-			log.Printf("🎵 [DEBUG] First album: %s - %s (%d tracks)", albums[0].Artist, albums[0].Name, albums[0].TrackCount())
+		// Debug: Log first few display items if available
+		if displayItemCount > 0 {
+			displayItems := slv.musicLibrary.GetDisplayItems()
+			firstItem := displayItems[0]
+			log.Printf("🎵 [DEBUG] First display item: %s (folder: %t)", firstItem.GetName(), firstItem.IsFolder())
 		}
 		
 		slv.refreshContent()
 		if slv.songList != nil {
-			log.Println("🎵 [DEBUG] Refreshing album list")
+			log.Println("🎵 [DEBUG] Refreshing display list")
 			slv.songList.Refresh()
 		}
 	})

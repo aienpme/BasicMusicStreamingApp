@@ -133,11 +133,18 @@ class FragmentNavigationManager(
                 albumDetailFragment = null
                 currentDisplayMode = DisplayMode.NORMAL
                 
-                // Restore the background fragment visibility
-                backgroundFragment?.view?.visibility = android.view.View.VISIBLE
-                backgroundFragment = null
+                // Safely restore the background fragment visibility
+                restoreBackgroundFragment()
                 
                 // Notify callback
+                callback.onAlbumDetailBackPressed()
+            }
+        } ?: run {
+            // Safety fallback: if albumDetailFragment is null but we're in ALBUM_DETAIL mode
+            // This can happen if navigation gets interrupted
+            if (currentDisplayMode == DisplayMode.ALBUM_DETAIL) {
+                currentDisplayMode = DisplayMode.NORMAL
+                restoreBackgroundFragment()
                 callback.onAlbumDetailBackPressed()
             }
         }
@@ -195,11 +202,18 @@ class FragmentNavigationManager(
                 playlistDetailFragment = null
                 currentDisplayMode = DisplayMode.NORMAL
                 
-                // Restore the background fragment visibility
-                backgroundFragment?.view?.visibility = android.view.View.VISIBLE
-                backgroundFragment = null
+                // Safely restore the background fragment visibility
+                restoreBackgroundFragment()
                 
                 // Notify callback
+                callback.onPlaylistDetailBackPressed()
+            }
+        } ?: run {
+            // Safety fallback: if playlistDetailFragment is null but we're in PLAYLIST_DETAIL mode
+            // This can happen if navigation gets interrupted
+            if (currentDisplayMode == DisplayMode.PLAYLIST_DETAIL) {
+                currentDisplayMode = DisplayMode.NORMAL
+                restoreBackgroundFragment()
                 callback.onPlaylistDetailBackPressed()
             }
         }
@@ -207,5 +221,67 @@ class FragmentNavigationManager(
     
     fun isAnimating(): Boolean {
         return albumTransitionAnimator?.isCurrentlyAnimating() == true
+    }
+    
+    /**
+     * Safely restores the background fragment visibility.
+     * Includes fallback logic if backgroundFragment reference is lost.
+     */
+    private fun restoreBackgroundFragment() {
+        backgroundFragment?.view?.let { view ->
+            if (view.visibility != android.view.View.VISIBLE) {
+                view.visibility = android.view.View.VISIBLE
+            }
+        } ?: run {
+            // Fallback: if we lost the backgroundFragment reference, 
+            // find the current fragment and ensure it's visible
+            val currentMainFragment = fragmentManager.findFragmentById(R.id.fragment_container)
+            if (currentMainFragment != null && 
+                currentMainFragment !is AlbumDetailFragment && 
+                currentMainFragment !is PlaylistDetailFragment) {
+                currentMainFragment.view?.visibility = android.view.View.VISIBLE
+            }
+        }
+        
+        // Clear the reference
+        backgroundFragment = null
+    }
+    
+    /**
+     * Emergency recovery method to restore normal navigation state.
+     * Call this if fragments get stuck in an invisible state.
+     */
+    fun forceRestoreNormalState() {
+        currentDisplayMode = DisplayMode.NORMAL
+        
+        // Remove any detail fragments
+        albumDetailFragment?.let { fragment ->
+            if (fragment.isAdded) {
+                try {
+                    fragmentManager.beginTransaction()
+                        .remove(fragment)
+                        .commitNowAllowingStateLoss()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+        albumDetailFragment = null
+        
+        playlistDetailFragment?.let { fragment ->
+            if (fragment.isAdded) {
+                try {
+                    fragmentManager.beginTransaction()
+                        .remove(fragment)
+                        .commitNowAllowingStateLoss()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+        playlistDetailFragment = null
+        
+        // Ensure main fragment is visible
+        restoreBackgroundFragment()
     }
 } 

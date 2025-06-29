@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
 	"bma-go/internal/server"
@@ -15,6 +16,7 @@ import (
 type DeviceStatusView struct {
 	serverManager *server.ServerManager
 	deviceLabel   *widget.Label
+	libraryLabel  *widget.Label
 	content       *fyne.Container
 }
 
@@ -33,7 +35,17 @@ func (view *DeviceStatusView) initialize() {
 	view.deviceLabel = widget.NewLabel("No devices connected")
 	view.deviceLabel.TextStyle = fyne.TextStyle{Italic: true}
 	
-	view.content = container.NewVBox(view.deviceLabel)
+	view.libraryLabel = widget.NewLabel("No library")
+	view.libraryLabel.TextStyle = fyne.TextStyle{Bold: true}
+	
+	// Create horizontal layout with device status on left, library stats on right
+	statusContent := container.NewHBox(
+		view.deviceLabel,
+		layout.NewSpacer(),
+		view.libraryLabel,
+	)
+	
+	view.content = container.NewVBox(statusContent)
 	view.updateDeviceStatus()
 }
 
@@ -62,6 +74,15 @@ func (view *DeviceStatusView) startPeriodicUpdates() {
 			view.updateDeviceStatus()
 		}
 	}()
+}
+
+// UpdateLibraryStats updates the library statistics display
+func (view *DeviceStatusView) UpdateLibraryStats(albumCount, songCount int) {
+	if albumCount == 0 && songCount == 0 {
+		view.libraryLabel.SetText("No library")
+	} else {
+		view.libraryLabel.SetText(fmt.Sprintf("%d albums • %d songs", albumCount, songCount))
+	}
 }
 
 // GetContent returns the UI content for display

@@ -17,6 +17,7 @@ class QueueNavigator(
         fun seekTo(position: Int)
         fun stop()
         fun getRepeatMode(): Int
+        fun onSongCompletedForRepeat()
     }
     
     companion object {
@@ -39,7 +40,12 @@ class QueueNavigator(
         
         // Handle repeat one mode
         if (repeatMode == REPEAT_MODE_ONE) {
-            Log.d("QueueNavigator", "🔂 Repeat one - seeking to 0")
+            Log.d("QueueNavigator", "🔂 Repeat one - completing current play and starting new tracking session")
+            
+            // Save stats for the completed play before repeating
+            playbackCallback.onSongCompletedForRepeat()
+            
+            // Seek to beginning for repeat (this will start a new tracking session)
             playbackCallback.seekTo(0)
             return playbackCallback.getCurrentSong()
         }

@@ -1,0 +1,28 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.bma.android.app-mergeDebugResources-42:/values-v27/values-v27.xml",
+            "map": [
+                {
+                    "source": "/Users/alex/Documents/Spotify Main Copy/BasicStreamingApp/BMA-Android/app/src/main/res/values-v27/themes.xml",
+                    "from": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "131",
+                        "endLines": "24",
+                        "endColumns": "12",
+                        "endOffsets": "1237"
+                    },
+                    "to": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "23",
+                        "endColumns": "12",
+                        "endOffsets": "1083"
+                    }
+                }
+            ]
+        }
+    ]
+}

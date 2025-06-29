@@ -23,6 +23,9 @@ public final class ActivityDownloadSelectionBinding implements ViewBinding {
   private final LinearLayout rootView;
 
   @NonNull
+  public final LinearLayout buttonContainer;
+
+  @NonNull
   public final MaterialButton downloadAllButton;
 
   @NonNull
@@ -38,9 +41,11 @@ public final class ActivityDownloadSelectionBinding implements ViewBinding {
   public final ViewPager2 viewPager;
 
   private ActivityDownloadSelectionBinding(@NonNull LinearLayout rootView,
-      @NonNull MaterialButton downloadAllButton, @NonNull MaterialButton downloadSelectedButton,
-      @NonNull TabLayout tabLayout, @NonNull Toolbar toolbar, @NonNull ViewPager2 viewPager) {
+      @NonNull LinearLayout buttonContainer, @NonNull MaterialButton downloadAllButton,
+      @NonNull MaterialButton downloadSelectedButton, @NonNull TabLayout tabLayout,
+      @NonNull Toolbar toolbar, @NonNull ViewPager2 viewPager) {
     this.rootView = rootView;
+    this.buttonContainer = buttonContainer;
     this.downloadAllButton = downloadAllButton;
     this.downloadSelectedButton = downloadSelectedButton;
     this.tabLayout = tabLayout;
@@ -75,6 +80,12 @@ public final class ActivityDownloadSelectionBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.button_container;
+      LinearLayout buttonContainer = ViewBindings.findChildViewById(rootView, id);
+      if (buttonContainer == null) {
+        break missingId;
+      }
+
       id = R.id.download_all_button;
       MaterialButton downloadAllButton = ViewBindings.findChildViewById(rootView, id);
       if (downloadAllButton == null) {
@@ -105,8 +116,8 @@ public final class ActivityDownloadSelectionBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityDownloadSelectionBinding((LinearLayout) rootView, downloadAllButton,
-          downloadSelectedButton, tabLayout, toolbar, viewPager);
+      return new ActivityDownloadSelectionBinding((LinearLayout) rootView, buttonContainer,
+          downloadAllButton, downloadSelectedButton, tabLayout, toolbar, viewPager);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

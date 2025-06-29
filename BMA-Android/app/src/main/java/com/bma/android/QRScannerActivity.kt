@@ -306,7 +306,6 @@ class QRScannerActivity : AppCompatActivity() {
             
             showStatus("Connected successfully!")
             
-            Toast.makeText(this, "Connected to BMA server!", Toast.LENGTH_LONG).show()
             
             // Return to main activity
             debugLog("Setting result OK and finishing activity")

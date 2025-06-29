@@ -26,11 +26,13 @@ class ConnectionManager(
         fun onNoCredentials()
         fun onConnectionTimeout()
         fun onConnectionLost()
+        fun onConnectionDiagnostics(result: NetworkDiagnostics.DiagnosticResult)
     }
     
     private var healthCheckHandler: Handler? = null
     private var healthCheckRunnable: Runnable? = null
     private var isInNormalMode = false
+    private val networkDiagnostics = NetworkDiagnostics(context)
     
     fun checkConnection() {
         lifecycleScope.launch {
@@ -72,13 +74,21 @@ class ConnectionManager(
                     if (connectionJob.isActive) {
                         Log.w("ConnectionManager", "Connection check timed out after 10 seconds")
                         connectionJob.cancel()
-                        callback.onConnectionTimeout()
+                        
+                        // Run diagnostics to determine the specific issue
+                        Log.d("ConnectionManager", "Running diagnostics for timeout...")
+                        val diagnosticResult = networkDiagnostics.diagnoseConnectionFailure()
+                        callback.onConnectionDiagnostics(diagnosticResult)
                     }
                 }
                 
             } catch (e: Exception) {
                 Log.e("ConnectionManager", "Connection check failed with exception", e)
-                callback.onConnectionTimeout()
+                
+                // Run diagnostics to determine the specific issue
+                Log.d("ConnectionManager", "Running diagnostics for exception...")
+                val diagnosticResult = networkDiagnostics.diagnoseConnectionFailure()
+                callback.onConnectionDiagnostics(diagnosticResult)
             }
         }
     }
@@ -150,8 +160,11 @@ class ConnectionManager(
                 }
             } catch (e: Exception) {
                 Log.e("ConnectionManager", "Health check failed", e)
-                // On exception, treat as connection lost
-                callback.onConnectionLost()
+                
+                // Run diagnostics to determine the specific issue
+                Log.d("ConnectionManager", "Running diagnostics for health check failure...")
+                val diagnosticResult = networkDiagnostics.diagnoseConnectionFailure()
+                callback.onConnectionDiagnostics(diagnosticResult)
             }
         }
     }
