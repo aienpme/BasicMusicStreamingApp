@@ -18,7 +18,10 @@ import com.bma.android.databinding.FragmentSettingsBinding
 import com.bma.android.storage.PlaylistManager
 import com.bma.android.storage.OfflineModeManager
 import com.bma.android.MainActivity
+import com.bma.android.ui.stats.StreamingStatsActivity
+import com.bma.android.main.components.NetworkDiagnostics
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.OfflineModeAware {
 
@@ -27,6 +30,9 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
     
     // Offline mode state
     private var isOfflineMode = false
+    
+    // Track if QR scanner was launched from offline mode exit context
+    private var isExitingOfflineMode = false
 
     private lateinit var qrScannerLauncher: androidx.activity.result.ActivityResultLauncher<Intent>
     private lateinit var createBackupFileLauncher: androidx.activity.result.ActivityResultLauncher<String>
@@ -38,9 +44,36 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
         // Register ActivityResultLaunchers in onCreate to ensure they're available
         qrScannerLauncher = registerForActivityResult(
             ActivityResultContracts.StartActivityForResult()
-        ) {
+        ) { result ->
             // After returning from QR scanner, update the status
             updateConnectionStatus()
+            
+            // If we were in the process of exiting offline mode, check if we can now complete it
+            if (isExitingOfflineMode) {
+                isExitingOfflineMode = false // Reset the flag
+                
+                // Re-check connection status after QR authentication
+                lifecycleScope.launch {
+                    try {
+                        when (OfflineModeManager.getExitOfflineModeStatus(requireContext())) {
+                            com.bma.android.api.ApiClient.ConnectionStatus.CONNECTED -> {
+                                // Successfully authenticated - exit offline mode automatically
+                                OfflineModeManager.disableOfflineMode()
+                                
+                                // Restart MainActivity to switch back to online mode
+                                val intent = Intent(requireContext(), com.bma.android.MainActivity::class.java)
+                                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                                startActivity(intent)
+                            }
+                            else -> {
+                                // Authentication failed or other issue - user can try again
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("SettingsFragment", "Error checking connection after QR auth", e)
+                    }
+                }
+            }
         }
 
         createBackupFileLauncher = registerForActivityResult(
@@ -68,18 +101,26 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
         // Check current offline mode state
         isOfflineMode = OfflineModeManager.isOfflineMode()
 
+        // CRITICAL: Set correct UI state immediately to prevent flash
+        updateConnectionStatus()
+
         setupClickListeners()
         setupComingSoonFeatures()
         setupOfflineModeControls()
     }
     
     override fun onOfflineModeChanged(isOffline: Boolean) {
+        val previousMode = isOfflineMode
         isOfflineMode = isOffline
         
-        // Only update UI if view is available
+        // Only update UI if view is available AND mode actually changed
         if (_binding != null) {
-            // Update UI to reflect new offline mode state
-            updateConnectionStatus()
+            if (previousMode != isOfflineMode) {
+                android.util.Log.d("SettingsFragment", "Offline mode changed: $previousMode → $isOfflineMode, updating UI")
+                updateConnectionStatus()
+            } else {
+                android.util.Log.d("SettingsFragment", "Offline mode notification received but no actual change ($isOfflineMode)")
+            }
         } else {
             android.util.Log.d("SettingsFragment", "Offline mode changed but view not available yet")
         }
@@ -87,9 +128,26 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
 
     override fun onResume() {
         super.onResume()
-        // Update status every time the fragment is shown
+        
+        // Force save any accumulated streaming stats for immediate display
+        val mainActivity = activity as? MainActivity
+        mainActivity?.let { main ->
+            val musicService = main.getMusicService()
+            musicService?.let { service ->
+                // Force save any accumulated streaming time
+                service.forceSaveStreamingStats()
+                android.util.Log.d("SettingsFragment", "Force saved streaming stats for immediate display")
+            }
+        }
+        
+        // Update status immediately (already called in onViewCreated, but refresh for any state changes)
         updateConnectionStatus()
-        updateStreamingStats()
+        
+        // Small delay only for stats to ensure save completes
+        lifecycleScope.launch {
+            delay(100) // 100ms delay to ensure stats save completes
+            updateStreamingStats()
+        }
     }
 
     private fun setupClickListeners() {
@@ -124,6 +182,11 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
         binding.clearCacheButton.setOnClickListener {
             clearCache()
         }
+        
+        // Streaming Stats feature
+        binding.seeStreamingStatsButton.setOnClickListener {
+            openStreamingStats()
+        }
     }
     
     private fun setupOfflineModeControls() {
@@ -137,6 +200,11 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
     
     private fun openDownloadSelection() {
         val intent = android.content.Intent(requireContext(), com.bma.android.ui.downloads.DownloadSelectionActivity::class.java)
+        startActivity(intent)
+    }
+    
+    private fun openStreamingStats() {
+        val intent = Intent(requireContext(), StreamingStatsActivity::class.java)
         startActivity(intent)
     }
     
@@ -175,9 +243,14 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
         val serverUrl = ApiClient.getServerUrl()
 
         if (isOfflineMode) {
-            // Offline mode is active
-            binding.connectionStatusText.text = "🔸 Offline Mode Active\nShowing downloaded content only"
+            // Offline mode is active - use modern styling
+            binding.connectionStatusText.text = "Offline Mode Active\nShowing downloaded content only"
             binding.connectionStatusText.setTextColor(requireContext().getColor(android.R.color.holo_orange_dark))
+            // Add offline icon to the text using compound drawable
+            val offlineIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_offline)
+            offlineIcon?.setTint(requireContext().getColor(android.R.color.holo_orange_dark))
+            binding.connectionStatusText.setCompoundDrawablesWithIntrinsicBounds(offlineIcon, null, null, null)
+            binding.connectionStatusText.compoundDrawablePadding = 12
             binding.disconnectButton.isVisible = false
             binding.reconnectButton.text = "Exit Offline Mode"
             binding.reconnectButton.isVisible = true
@@ -192,6 +265,8 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
             }
             binding.connectionStatusText.text = "✅ Connected via $protocol to:\n$serverUrl"
             binding.connectionStatusText.setTextColor(requireContext().getColor(android.R.color.holo_green_dark))
+            // Clear any compound drawables for connected state
+            binding.connectionStatusText.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
             binding.disconnectButton.isVisible = true
             binding.reconnectButton.text = "Reconnect"
             binding.reconnectButton.isVisible = false
@@ -201,6 +276,8 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
         } else {
             binding.connectionStatusText.text = "❌ Not connected"
             binding.connectionStatusText.setTextColor(requireContext().getColor(android.R.color.holo_red_dark))
+            // Clear any compound drawables for disconnected state  
+            binding.connectionStatusText.setCompoundDrawablesWithIntrinsicBounds(null, null, null, null)
             binding.disconnectButton.isVisible = false
             binding.reconnectButton.text = "Reconnect"
             binding.reconnectButton.isVisible = true
@@ -213,25 +290,163 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
     private fun exitOfflineMode() {
         lifecycleScope.launch {
             try {
-                // Check if server is now reachable
-                if (OfflineModeManager.canExitOfflineMode(requireContext())) {
-                    OfflineModeManager.disableOfflineMode()
-                    Toast.makeText(requireContext(), "Exited offline mode", Toast.LENGTH_SHORT).show()
-                    
-                    // Restart MainActivity to switch back to online mode
-                    val intent = Intent(requireContext(), com.bma.android.MainActivity::class.java)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                    startActivity(intent)
-                } else {
-                    // Server still not reachable
-                    AlertDialog.Builder(requireContext())
-                        .setTitle("Cannot Exit Offline Mode")
-                        .setMessage("Server is still unreachable. Please check your connection and try again.")
-                        .setPositiveButton("OK", null)
-                        .show()
+                // FIRST: Run comprehensive network diagnostics before attempting any authentication
+                android.util.Log.d("SettingsFragment", "Running pre-authentication diagnostics...")
+                val networkDiagnostics = NetworkDiagnostics(requireContext())
+                val diagnosticResult = networkDiagnostics.diagnoseConnectionFailure()
+                
+                if (diagnosticResult.hasIssue) {
+                    // Connectivity/Tailscale issues detected - show specific error and don't proceed
+                    android.util.Log.d("SettingsFragment", "Diagnostics failed: ${diagnosticResult.issue}")
+                    showConnectionDiagnosticDialog(diagnosticResult)
+                    return@launch
+                }
+                
+                // SECOND: Only if diagnostics pass, proceed with authentication check
+                android.util.Log.d("SettingsFragment", "Diagnostics passed - checking authentication...")
+                when (OfflineModeManager.getExitOfflineModeStatus(requireContext())) {
+                    com.bma.android.api.ApiClient.ConnectionStatus.CONNECTED -> {
+                        // Server is reachable and authenticated - exit offline mode
+                        OfflineModeManager.disableOfflineMode()
+                        
+                        // Restart MainActivity to switch back to online mode
+                        val intent = Intent(requireContext(), com.bma.android.MainActivity::class.java)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        startActivity(intent)
+                    }
+                    com.bma.android.api.ApiClient.ConnectionStatus.TOKEN_EXPIRED -> {
+                        // Server is reachable but token expired - launch QR scanner for re-authentication
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Re-authentication Required")
+                            .setMessage("Your session has expired. Please scan the QR code to reconnect to the server.")
+                            .setPositiveButton("Scan QR Code") { _, _ ->
+                                isExitingOfflineMode = true // Set flag to auto-complete exit after QR auth
+                                qrScannerLauncher.launch(Intent(requireContext(), QRScannerActivity::class.java))
+                            }
+                            .setNegativeButton("Stay Offline", null)
+                            .show()
+                    }
+                    com.bma.android.api.ApiClient.ConnectionStatus.NO_CREDENTIALS -> {
+                        // No credentials stored - launch QR scanner for initial authentication
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Authentication Required") 
+                            .setMessage("Please scan the QR code to connect to the server.")
+                            .setPositiveButton("Scan QR Code") { _, _ ->
+                                isExitingOfflineMode = true // Set flag to auto-complete exit after QR auth
+                                qrScannerLauncher.launch(Intent(requireContext(), QRScannerActivity::class.java))
+                            }
+                            .setNegativeButton("Stay Offline", null)
+                            .show()
+                    }
+                    com.bma.android.api.ApiClient.ConnectionStatus.DISCONNECTED -> {
+                        // This should rarely happen if diagnostics passed, but handle gracefully
+                        AlertDialog.Builder(requireContext())
+                            .setTitle("Connection Issue")
+                            .setMessage("Unable to connect to the server despite passing initial checks. Please try again.")
+                            .setPositiveButton("Try Again") { _, _ ->
+                                exitOfflineMode() // Retry the entire process
+                            }
+                            .setNegativeButton("Stay Offline", null)
+                            .show()
+                    }
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Error checking server connection", Toast.LENGTH_SHORT).show()
+                android.util.Log.e("SettingsFragment", "Error during offline mode exit", e)
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Error")
+                    .setMessage("An unexpected error occurred. Please try again.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the entire process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+        }
+    }
+
+    private fun showConnectionDiagnosticDialog(result: NetworkDiagnostics.DiagnosticResult) {
+        when (result.issue) {
+            NetworkDiagnostics.ConnectionIssue.NO_INTERNET -> {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("No Internet Connection")
+                    .setMessage("Your device is not connected to the internet. Please check your WiFi or mobile data connection.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the exit process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+            NetworkDiagnostics.ConnectionIssue.TAILSCALE_NOT_INSTALLED -> {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Tailscale Required")
+                    .setMessage("Tailscale is not installed. Please install Tailscale to connect to your BMA server.")
+                    .setPositiveButton("Install Tailscale") { _, _ ->
+                        // Open Play Store to install Tailscale
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data = android.net.Uri.parse("https://play.google.com/store/apps/details?id=com.tailscale.ipn")
+                        }
+                        startActivity(intent)
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+            NetworkDiagnostics.ConnectionIssue.TAILSCALE_NOT_CONNECTED -> {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Tailscale Not Connected")
+                    .setMessage("Tailscale is installed but not running. Please open Tailscale and connect to your network.")
+                    .setPositiveButton("Open Tailscale") { _, _ ->
+                        // Open Tailscale app using proper launch intent
+                        try {
+                            val intent = requireContext().packageManager.getLaunchIntentForPackage("com.tailscale.ipn")
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(intent)
+                                android.util.Log.d("SettingsFragment", "Successfully launched Tailscale")
+                            } else {
+                                android.util.Log.e("SettingsFragment", "Tailscale launch intent not found")
+                                Toast.makeText(requireContext(), "Unable to open Tailscale - please open it manually", Toast.LENGTH_SHORT).show()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("SettingsFragment", "Failed to open Tailscale", e)
+                            Toast.makeText(requireContext(), "Please open Tailscale manually", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    .setNeutralButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the exit process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+            NetworkDiagnostics.ConnectionIssue.INTERNET_DOWN_TAILSCALE_UP -> {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Internet Connection Issue")
+                    .setMessage("Tailscale is connected but internet access is unavailable. Please check your WiFi or ISP connection.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the exit process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+            NetworkDiagnostics.ConnectionIssue.SERVER_UNREACHABLE -> {
+                AlertDialog.Builder(requireContext())
+                    .setTitle("BMA Server Unavailable")
+                    .setMessage("Your BMA server is not reachable. The server may be down or there may be network issues.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the exit process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
+            }
+            NetworkDiagnostics.ConnectionIssue.UNKNOWN_ERROR, null -> {
+                // Fallback to original generic message
+                AlertDialog.Builder(requireContext())
+                    .setTitle("Cannot Exit Offline Mode")
+                    .setMessage("Unable to connect to the server. Please check your connection and try again.")
+                    .setPositiveButton("Try Again") { _, _ ->
+                        exitOfflineMode() // Retry the exit process
+                    }
+                    .setNegativeButton("Stay Offline", null)
+                    .show()
             }
         }
     }
@@ -307,8 +522,17 @@ class SettingsFragment : Fragment(R.layout.fragment_settings), MainActivity.Offl
                 .remove("auth_token")
                 .apply()
             
-            val message = if (serverNotified) "Disconnected from server" else "Disconnected locally"
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            // Automatically enable offline mode to prevent redirect to setup wizard
+            OfflineModeManager.enableOfflineMode()
+            
+            // Update local offline mode state to sync with OfflineModeManager
+            isOfflineMode = true
+            
+            val message = if (serverNotified) {
+                "Disconnected from server - offline mode enabled"
+            } else {
+                "Disconnected locally - offline mode enabled"
+            }
             updateConnectionStatus()
         }
     }

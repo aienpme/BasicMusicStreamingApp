@@ -27,8 +27,10 @@ import com.bma.android.models.Song
 import com.bma.android.models.Playlist
 import com.bma.android.storage.PlaylistManager
 import com.bma.android.storage.OfflineModeManager
+import com.bma.android.storage.LibraryVersionManager
 import com.bma.android.ui.playlist.CreatePlaylistDialog
 import com.bma.android.ui.playlist.PlaylistSelectionDialog
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.launch
 
 class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.OfflineModeAware {
@@ -87,13 +89,76 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
         bindMusicService()
     }
     
+    override fun onResume() {
+        super.onResume()
+        // Refresh data when fragment becomes visible after navigation
+        if (_binding != null && isVisible) {
+            // Check for library updates before loading albums (non-blocking)
+            lifecycleScope.launch {
+                val hasNewContent = LibraryVersionManager.checkForLibraryUpdate(requireContext())
+                if (hasNewContent) {
+                    // Show user-friendly notification
+                    showNewContentNotification()
+                }
+                // Always refresh data to keep consistent
+                loadAlbums()
+            }
+            
+            // Trigger startup connectivity check (same as Settings offline mode exit)
+            (activity as? MainActivity)?.performStartupConnectivityCheck()
+        }
+    }
+    
+    override fun onHiddenChanged(hidden: Boolean) {
+        super.onHiddenChanged(hidden)
+        // Fragment became visible, refresh if needed
+        if (!hidden && _binding != null) {
+            loadAlbums()
+        }
+    }
+    
     override fun onOfflineModeChanged(isOffline: Boolean) {
+        val wasOfflineMode = isOfflineMode
         isOfflineMode = isOffline
+        
+        android.util.Log.d("LibraryFragment", "Offline mode changed: $wasOfflineMode → $isOfflineMode")
         
         // Only reload if view is available
         if (_binding != null) {
-            // Reload data with new mode
-            loadAlbums()
+            if (wasOfflineMode != isOfflineMode) {
+                // Mode actually changed - need to sync data
+                lifecycleScope.launch {
+                    try {
+                        val playlistManager = PlaylistManager.getInstance(requireContext())
+                        
+                        if (!isOfflineMode && wasOfflineMode) {
+                            // Transitioning from offline → online
+                            android.util.Log.d("LibraryFragment", "Syncing playlists from offline to online mode")
+                            playlistManager.syncPlaylistsOfflineToOnline()
+                            
+                            // Refresh library version when going back online
+                            LibraryVersionManager.refreshLibraryVersion(requireContext())
+                            
+                            // Check for updates after refreshing version
+                            val hasNewContent = LibraryVersionManager.checkForLibraryUpdate(requireContext())
+                            if (hasNewContent) {
+                                showNewContentNotification()
+                            }
+                        }
+                        
+                        // Reload data with new mode
+                        loadAlbums()
+                        
+                    } catch (e: Exception) {
+                        android.util.Log.e("LibraryFragment", "Error during mode transition sync", e)
+                        // Still reload even if sync fails
+                        loadAlbums()
+                    }
+                }
+            } else {
+                // No actual mode change, just refresh
+                loadAlbums()
+            }
         } else {
             android.util.Log.d("LibraryFragment", "Offline mode changed but view not available yet")
         }
@@ -165,6 +230,9 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
 
     private fun loadAlbums() {
         lifecycleScope.launch {
+            // Check if view is still available before proceeding
+            if (_binding == null) return@launch
+            
             binding.progressBar.isVisible = true
             binding.errorText.isVisible = false
             
@@ -176,7 +244,6 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
                     
                     // Load offline data
                     val songList = playlistManager.getAllSongsOffline()
-                    val albums = playlistManager.getAllAlbumsOffline()
                     val playlists = playlistManager.getPlaylistsOffline()
                     
                     allSongs = songList // Store for playlist creation
@@ -186,18 +253,11 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
                         return@launch
                     }
                     
-                    // For offline mode, we already have organized albums from the manager
-                    // Just need to find standalone songs
-                    val standaloneSongs = songList.filter { song ->
-                        albums.none { album -> album.songs.contains(song) }
-                    }
+                    // Use same organization logic as online mode for consistent album/song separation
+                    libraryContent = organizeLibraryContent(songList, playlists)
                     
-                    libraryContent = LibraryContent(
-                        playlists = playlists.sortedBy { it.name },
-                        albums = albums.sortedBy { it.name },
-                        standaloneSongs = standaloneSongs.sortedBy { it.title }
-                    )
-                    
+                    // Check if view is still available before updating UI
+                    if (_binding == null) return@launch
                     libraryAdapter.updateContent(libraryContent)
                     binding.albumsRecyclerView.isVisible = !libraryContent.isEmpty
                     
@@ -207,7 +267,10 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
                     // Online mode - original logic
                     val authHeader = ApiClient.getAuthHeader()
                     if (authHeader == null || ApiClient.isTokenExpired(requireContext())) {
-                        showError("Not authenticated. Please connect in settings.")
+                        // Check if view is still available before showing error
+                        if (_binding != null) {
+                            showError("Not authenticated. Please connect in settings.")
+                        }
                         return@launch
                     }
 
@@ -218,6 +281,9 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
                     val playlists = playlistManager.loadPlaylists()
                     
                     libraryContent = organizeLibraryContent(songList, playlists)
+                    
+                    // Check if view is still available before updating UI
+                    if (_binding == null) return@launch
                     libraryAdapter.updateContent(libraryContent)
                     binding.albumsRecyclerView.isVisible = !libraryContent.isEmpty
                 }
@@ -228,20 +294,32 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
                 } else {
                     "Failed to load albums: ${e.message}"
                 }
-                showError(errorMessage)
+                // Check if view is still available before showing error
+                if (_binding != null) {
+                    showError(errorMessage)
+                }
             } finally {
-                binding.progressBar.isVisible = false
+                // Check if view is still available before hiding progress bar
+                if (_binding != null) {
+                    binding.progressBar.isVisible = false
+                }
             }
         }
     }
 
     private fun showError(message: String) {
+        // Check if view is still available
+        if (_binding == null) return
+        
         binding.errorText.text = message
         binding.errorText.isVisible = true
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
     
     private fun showOfflineEmptyState() {
+        // Check if view is still available
+        if (_binding == null) return
+        
         val message = "🔸 Offline Mode - No Downloaded Music\n\n" +
                      "You don't have any downloaded music yet.\n" +
                      "To use offline mode:\n" +
@@ -460,6 +538,18 @@ class LibraryFragment : Fragment(R.layout.fragment_library), MainActivity.Offlin
     // Public method to get all songs for MainActivity
     fun getAllSongs(): List<Song> {
         return allSongs
+    }
+    
+    /**
+     * Show a subtle, user-friendly notification when new library content is detected
+     */
+    private fun showNewContentNotification() {
+        binding.root.let { view ->
+            Snackbar.make(view, "🎵 New music detected! Library refreshed automatically", Snackbar.LENGTH_LONG)
+                .setAction("OK") { /* User acknowledged */ }
+                .setAnchorView(binding.albumsRecyclerView) // Position above RecyclerView
+                .show()
+        }
     }
 
 }

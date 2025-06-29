@@ -3,6 +3,8 @@ package com.bma.android.main.components
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.bma.android.MusicService
@@ -34,12 +36,69 @@ class MiniPlayerController(
     }
     
     fun setup() {
-        // Click mini-player to open PlayerActivity
-        binding.root.setOnClickListener {
-            callback.getMusicService()?.getCurrentSong()?.let {
-                val intent = Intent(context, PlayerActivity::class.java)
-                context.startActivity(intent)
+        // Setup gesture detector to handle BOTH tap and swipe
+        val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+            
+            override fun onDown(e: MotionEvent): Boolean {
+                Log.d("MiniPlayerController", "onDown called")
+                return true // Must return true to receive other gestures
             }
+            
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                // Handle tap - open PlayerActivity with slide-up animation (Spotify-style)
+                Log.d("MiniPlayerController", "Tap detected - opening PlayerActivity")
+                callback.getMusicService()?.getCurrentSong()?.let {
+                    val intent = Intent(context, PlayerActivity::class.java)
+                    context.startActivity(intent)
+                    
+                    // Apply slide-up animation if context is an Activity
+                    if (context is android.app.Activity) {
+                        context.overridePendingTransition(R.anim.slide_in_up, R.anim.slide_out_down)
+                    }
+                }
+                return true
+            }
+            
+            override fun onLongPress(e: MotionEvent) {
+                Log.d("MiniPlayerController", "Long press detected")
+            }
+            
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                Log.d("MiniPlayerController", "Fling detected: deltaX=${e2.x - (e1?.x ?: 0f)}, velocityX=$velocityX")
+                
+                if (!isSwipeAllowed()) {
+                    val queueSize = callback.getMusicService()?.getUpcomingQueue()?.size ?: 0
+                    val totalSongs = queueSize + 1
+                    Log.d("MiniPlayerController", "Swipe not allowed - Queue: $totalSongs songs, Repeat mode: ${callback.getMusicService()?.getRepeatMode()}")
+                    return false
+                }
+                
+                val deltaX = e2.x - (e1?.x ?: 0f)
+                val deltaY = e2.y - (e1?.y ?: 0f)
+                
+                // More lenient swipe detection
+                if (kotlin.math.abs(deltaX) > kotlin.math.abs(deltaY) && kotlin.math.abs(deltaX) > 30) {
+                    if (deltaX > 0) {
+                        // Swipe right - previous song
+                        Log.d("MiniPlayerController", "Swipe right - previous song")
+                        callback.getMusicService()?.skipToPrevious()
+                    } else {
+                        // Swipe left - next song
+                        Log.d("MiniPlayerController", "Swipe left - next song")
+                        callback.getMusicService()?.skipToNext()
+                    }
+                    return true
+                }
+                return false
+            }
+        })
+        
+        // Single touch listener handles everything
+        binding.root.setOnTouchListener { _, event ->
+            Log.d("MiniPlayerController", "Touch event: ${event.action}, x=${event.x}, y=${event.y}")
+            val result = gestureDetector.onTouchEvent(event)
+            Log.d("MiniPlayerController", "Gesture detector result: $result")
+            result
         }
         
         // Mini-player controls
@@ -60,6 +119,16 @@ class MiniPlayerController(
         binding.miniPlayerPrevious.setOnClickListener {
             callback.getMusicService()?.skipToPrevious()
         }
+    }
+    
+    private fun isSwipeAllowed(): Boolean {
+        val service = callback.getMusicService() ?: return false
+        val upcomingQueue = service.getUpcomingQueue()
+        val totalSongs = upcomingQueue.size + 1 // +1 for current playing song
+        val repeatMode = service.getRepeatMode()
+        
+        // Allow swiping if there are multiple songs in queue OR repeat mode is on
+        return totalSongs > 1 || repeatMode == 1 || repeatMode == 2
     }
     
     fun update() {

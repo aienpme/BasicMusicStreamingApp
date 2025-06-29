@@ -395,7 +395,7 @@ func (ss *SetupServer) handleSetupPage(w http.ResponseWriter, r *http.Request) {
                 const data = await response.json();
                 
                 if (data.success) {
-                    alert('🎉 Setup complete! BMA CLI will now restart as a music server.');
+                    alert('🎉 Setup complete! Please restart BMA CLI to start the music server.\n\nRun: ./bma-cli');
                     // Redirect or close
                     window.location.href = '/';
                 } else {

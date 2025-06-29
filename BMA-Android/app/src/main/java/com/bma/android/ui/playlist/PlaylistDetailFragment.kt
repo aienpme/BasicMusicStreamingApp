@@ -31,6 +31,15 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.Drawable
+import com.bma.android.utils.ArtworkUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class PlaylistDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
 
@@ -217,36 +226,192 @@ class PlaylistDetailFragment : Fragment(), ListenerManager.MusicServiceListener 
         val songs = songAdapter.getSongs()
         
         if (songs.isEmpty()) {
+            // Empty playlist - use placeholder
             binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
             return
         }
         
-        // For now, use the first song's artwork
-        // TODO: Implement 2x2 composite artwork
-        loadSingleArtwork(songs[0])
+        if (songs.size == 1) {
+            // Single song - use its artwork
+            loadSingleArtwork(songs[0])
+            return
+        }
+        
+        // Multiple songs - create 2x2 composite
+        createCompositeArtwork(songs.take(4))
     }
     
     private fun loadSingleArtwork(song: Song) {
-        val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-        val authHeader = ApiClient.getAuthHeader()
-        
-        if (authHeader != null) {
-            val glideUrl = GlideUrl(
-                artworkUrl, 
-                LazyHeaders.Builder()
-                    .addHeader("Authorization", authHeader)
-                    .build()
-            )
-            
-            Glide.with(requireContext())
-                .load(glideUrl)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .placeholder(R.drawable.ic_queue_music)
-                .error(R.drawable.ic_queue_music)
-                .into(binding.playlistArtwork)
-        } else {
-            binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+        // Use ArtworkUtils for offline-aware artwork loading
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val artworkPath = ArtworkUtils.getArtworkPath(requireContext(), song)
+                
+                if (artworkPath.isNotEmpty()) {
+                    if (artworkPath.startsWith("file://")) {
+                        // Local file - load directly
+                        Glide.with(requireContext())
+                            .load(artworkPath)
+                            .diskCacheStrategy(DiskCacheStrategy.ALL)
+                            .placeholder(R.drawable.ic_queue_music)
+                            .error(R.drawable.ic_queue_music)
+                            .into(binding.playlistArtwork)
+                    } else {
+                        // Server URL - load with auth header
+                        val authHeader = ApiClient.getAuthHeader()
+                        if (authHeader != null) {
+                            val glideUrl = GlideUrl(
+                                artworkPath,
+                                LazyHeaders.Builder()
+                                    .addHeader("Authorization", authHeader)
+                                    .build()
+                            )
+                            
+                            Glide.with(requireContext())
+                                .load(glideUrl)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_queue_music)
+                                .error(R.drawable.ic_queue_music)
+                                .into(binding.playlistArtwork)
+                        } else {
+                            binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+                        }
+                    }
+                } else {
+                    // Empty path - use placeholder
+                    binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+                }
+            } catch (e: Exception) {
+                // Error loading artwork - use placeholder
+                binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+            }
         }
+    }
+    
+    private fun createCompositeArtwork(songs: List<Song>) {
+        // Get unique songs for the composite (avoid duplicates)
+        val uniqueSongs = songs.distinctBy { it.id }.take(4)
+        
+        if (uniqueSongs.size == 1) {
+            loadSingleArtwork(uniqueSongs[0])
+            return
+        }
+        
+        // Load artworks and create composite
+        val loadedBitmaps = arrayOfNulls<Bitmap>(4)
+        var loadCount = 0
+        val targetSize = 128 // Size for each quadrant
+        
+        fun checkAndCreateComposite() {
+            if (loadCount >= uniqueSongs.size) {
+                createCompositeBitmap(loadedBitmaps.toList())
+            }
+        }
+        
+        // Load artworks for each position using offline-aware artwork loading
+        uniqueSongs.forEachIndexed { index, song ->
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    val artworkPath = ArtworkUtils.getArtworkPath(requireContext(), song)
+                    
+                    if (artworkPath.isNotEmpty()) {
+                        if (artworkPath.startsWith("file://")) {
+                            // Local file - load directly
+                            Glide.with(requireContext())
+                                .asBitmap()
+                                .load(artworkPath)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .override(targetSize, targetSize)
+                                .into(object : CustomTarget<Bitmap>() {
+                                    override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                        loadedBitmaps[index] = resource
+                                        loadCount++
+                                        checkAndCreateComposite()
+                                    }
+                                    
+                                    override fun onLoadCleared(placeholder: Drawable?) {
+                                        loadCount++
+                                        checkAndCreateComposite()
+                                    }
+                                })
+                        } else {
+                            // Server URL - load with auth header
+                            val authHeader = ApiClient.getAuthHeader()
+                            if (authHeader != null) {
+                                val glideUrl = GlideUrl(
+                                    artworkPath,
+                                    LazyHeaders.Builder()
+                                        .addHeader("Authorization", authHeader)
+                                        .build()
+                                )
+                                
+                                Glide.with(requireContext())
+                                    .asBitmap()
+                                    .load(glideUrl)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .override(targetSize, targetSize)
+                                    .into(object : CustomTarget<Bitmap>() {
+                                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                            loadedBitmaps[index] = resource
+                                            loadCount++
+                                            checkAndCreateComposite()
+                                        }
+                                        
+                                        override fun onLoadCleared(placeholder: Drawable?) {
+                                            loadCount++
+                                            checkAndCreateComposite()
+                                        }
+                                    })
+                            } else {
+                                // No auth header - skip this artwork
+                                loadCount++
+                                checkAndCreateComposite()
+                            }
+                        }
+                    } else {
+                        // Empty path - skip this artwork
+                        loadCount++
+                        checkAndCreateComposite()
+                    }
+                } catch (e: Exception) {
+                    // Error loading artwork - skip this artwork
+                    loadCount++
+                    checkAndCreateComposite()
+                }
+            }
+        }
+    }
+    
+    private fun createCompositeBitmap(bitmaps: List<Bitmap?>) {
+        val compositeSize = 256 // Final composite size
+        val quadrantSize = compositeSize / 2
+        
+        val compositeBitmap = Bitmap.createBitmap(compositeSize, compositeSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(compositeBitmap)
+        
+        // Fill background with dark color
+        canvas.drawColor(0xFF333333.toInt())
+        
+        // Draw up to 4 quadrants
+        val positions = listOf(
+            Pair(0, 0),           // Top-left
+            Pair(quadrantSize, 0), // Top-right
+            Pair(0, quadrantSize), // Bottom-left
+            Pair(quadrantSize, quadrantSize) // Bottom-right
+        )
+        
+        for (i in 0 until minOf(4, bitmaps.size)) {
+            val bitmap = bitmaps[i]
+            if (bitmap != null) {
+                val scaledBitmap = Bitmap.createScaledBitmap(bitmap, quadrantSize, quadrantSize, true)
+                val (x, y) = positions[i]
+                canvas.drawBitmap(scaledBitmap, x.toFloat(), y.toFloat(), null)
+                scaledBitmap.recycle()
+            }
+        }
+        
+        // Set the composite bitmap to the ImageView
+        binding.playlistArtwork.setImageBitmap(compositeBitmap)
     }
     
     private fun bindMusicService() {

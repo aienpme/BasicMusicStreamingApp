@@ -24,10 +24,17 @@ import com.bma.android.databinding.ItemSongInAlbumBinding
 import com.bma.android.databinding.FragmentAlbumDetailBinding
 import com.bma.android.models.Album
 import com.bma.android.models.Song
+import com.bma.android.storage.PlaylistManager
+import com.bma.android.ui.playlist.PlaylistSelectionDialog
+import com.bma.android.utils.ArtworkUtils
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class AlbumDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
 
@@ -135,26 +142,49 @@ class AlbumDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
     private fun loadAlbumArtwork() {
         if (album.songs.isNotEmpty()) {
             val firstSong = album.songs.first()
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${firstSong.id}"
             
-            val authHeader = ApiClient.getAuthHeader()
-            
-            if (authHeader != null) {
-                val glideUrl = GlideUrl(
-                    artworkUrl, 
-                    LazyHeaders.Builder()
-                        .addHeader("Authorization", authHeader)
-                        .build()
-                )
-                
-                Glide.with(this)
-                    .load(glideUrl)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_folder)
-                    .error(R.drawable.ic_folder)
-                    .into(binding.albumArtwork)
-            } else {
-                binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+            // Use ArtworkUtils for offline-aware artwork loading
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    val artworkPath = ArtworkUtils.getArtworkPath(requireContext(), firstSong)
+                    
+                    if (artworkPath.isNotEmpty()) {
+                        if (artworkPath.startsWith("file://")) {
+                            // Local file - load directly
+                            Glide.with(this@AlbumDetailFragment)
+                                .load(artworkPath)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_folder)
+                                .error(R.drawable.ic_folder)
+                                .into(binding.albumArtwork)
+                        } else {
+                            // Server URL - load with auth header
+                            val authHeader = ApiClient.getAuthHeader()
+                            if (authHeader != null) {
+                                val glideUrl = GlideUrl(
+                                    artworkPath, 
+                                    LazyHeaders.Builder()
+                                        .addHeader("Authorization", authHeader)
+                                        .build()
+                                )
+                                
+                                Glide.with(this@AlbumDetailFragment)
+                                    .load(glideUrl)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .placeholder(R.drawable.ic_folder)
+                                    .error(R.drawable.ic_folder)
+                                    .into(binding.albumArtwork)
+                            } else {
+                                binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                            }
+                        }
+                    } else {
+                        // Empty path - use placeholder
+                        binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                    }
+                } catch (e: Exception) {
+                    binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                }
             }
         } else {
             binding.albumArtwork.setImageResource(R.drawable.ic_folder)
@@ -184,10 +214,11 @@ class AlbumDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
     private fun showSongOptions(song: Song) {
         android.app.AlertDialog.Builder(requireContext())
             .setTitle(song.title)
-            .setItems(arrayOf("Add to Queue", "Add Next")) { _, which ->
+            .setItems(arrayOf("Add to Queue", "Add Next", "Add to playlist")) { _, which ->
                 when (which) {
                     0 -> addToQueue(song)
                     1 -> addNext(song)
+                    2 -> showPlaylistSelectionDialog(song)
                 }
             }
             .show()
@@ -201,6 +232,20 @@ class AlbumDetailFragment : Fragment(), ListenerManager.MusicServiceListener {
     private fun addNext(song: Song) {
         musicService?.addNext(song)
         Toast.makeText(requireContext(), "Added next: ${song.title}", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun showPlaylistSelectionDialog(song: Song) {
+        lifecycleScope.launch {
+            try {
+                val playlistManager = PlaylistManager.getInstance(requireContext())
+                val allSongs = playlistManager.getAllSongs()
+                
+                val dialog = PlaylistSelectionDialog.newInstance(song, allSongs)
+                dialog.show(parentFragmentManager, "PlaylistSelectionDialog")
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "No songs available", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupToolbar() {

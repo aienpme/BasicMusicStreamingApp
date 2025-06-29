@@ -13,7 +13,7 @@
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar">
+        android:background="@color/background">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/collapsingToolbar"
@@ -129,7 +129,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="16dp"
-                    android:text="▶ Play"
+                    android:text="Play"
+                    app:icon="@drawable/ic_play_arrow"
+                    app:iconGravity="start"
+                    app:iconPadding="8dp"
+                    app:iconSize="20dp"
                     android:textSize="16sp" />
 
                 <!-- Shuffle Button -->
@@ -138,7 +142,11 @@
                     style="@style/Widget.BMA.Button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="🔀 Shuffle"
+                    android:text="Shuffle"
+                    app:icon="@drawable/ic_shuffle"
+                    app:iconGravity="start"
+                    app:iconPadding="8dp"
+                    app:iconSize="20dp"
                     android:textSize="16sp" />
 
             </LinearLayout>

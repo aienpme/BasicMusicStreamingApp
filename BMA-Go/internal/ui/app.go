@@ -52,6 +52,9 @@ func (ui *MainUI) initialize() {
 	ui.deviceStatus = NewDeviceStatusView(ui.serverManager)
 	ui.songList = NewSongListView(ui.musicLibrary)
 	ui.libraryStatus = NewLibraryStatusBar(ui.musicLibrary, ui.serverManager)
+	
+	// Connect library updates to server status bar
+	ui.setupLibraryStatusConnection()
 
 	// Set the parent window for dialogs
 	ui.songList.SetParentWindow(ui.window)
@@ -82,13 +85,28 @@ func (ui *MainUI) initialize() {
 	ui.content = container.NewBorder(
 		// Top: Server status + device status
 		topSection,
-		// Bottom: Library status bar (stays at window bottom)
-		ui.libraryStatus.GetContent(),
+		// Bottom: nil (removed library status bar)
+		nil,
 		// Left & Right: nil
 		nil, nil,
 		// Center: Song list (size-constrained in SongListView)
 		ui.songList.GetContent(),
 	)
+}
+
+// setupLibraryStatusConnection connects the music library to update the device status bar
+func (ui *MainUI) setupLibraryStatusConnection() {
+	// Set up library change callback to update device status bar
+	ui.musicLibrary.SetLibraryChangedCallback(func() {
+		albumCount := ui.musicLibrary.GetAlbumCount()
+		songCount := ui.musicLibrary.GetSongCount()
+		ui.deviceStatus.UpdateLibraryStats(albumCount, songCount)
+	})
+	
+	// Initial update
+	albumCount := ui.musicLibrary.GetAlbumCount()
+	songCount := ui.musicLibrary.GetSongCount()
+	ui.deviceStatus.UpdateLibraryStats(albumCount, songCount)
 }
 
 // LoadMusicLibrary loads the music library from the configured folder
@@ -122,8 +140,8 @@ func (ui *MainUI) AutoStartServer() {
 	
 	log.Println("✅ Server auto-started successfully!")
 	
-	// Automatically generate and show QR code
-	ui.serverStatus.AutoGenerateQR()
+	// Automatically generate and show QR code (async to prevent UI lag)
+	go ui.serverStatus.AutoGenerateQR()
 }
 
 // GetContent returns the main UI content for display
@@ -133,6 +151,11 @@ func (ui *MainUI) GetContent() fyne.CanvasObject {
 
 // Cleanup handles application termination cleanup
 func (ui *MainUI) Cleanup() {
+	// Stop file system watcher before app terminates
+	if ui.musicLibrary != nil {
+		ui.musicLibrary.StopWatching()
+	}
+	
 	// Ensure server is stopped before app terminates (like SwiftUI onReceive)
 	if ui.serverManager != nil {
 		ui.serverManager.Cleanup()

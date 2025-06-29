@@ -64,12 +64,17 @@ func showSetupWizard(fyneApp fyne.App, config *models.Config) {
 	// Setup window resize animation for QR section
 	setupWindowAnimation(mainWindow, mainUI)
 	
-	// Handle app termination cleanup
-	mainWindow.SetCloseIntercept(func() {
-		log.Println("🛑 App terminating - ensuring server shutdown...")
+	// Create system tray manager with cleanup callback
+	systemTray := ui.NewSystemTrayManager(fyneApp, mainWindow, func() {
+		log.Println("🛑 Quit requested from system tray - cleaning up...")
 		mainUI.Cleanup()
-		log.Println("✅ App termination cleanup completed")
-		fyneApp.Quit()
+	})
+	systemTray.Setup()
+	
+	// Handle app termination cleanup - now handles both close button and tray quit
+	mainWindow.SetCloseIntercept(func() {
+		log.Println("🪟 Window close requested - hiding to system tray...")
+		systemTray.HandleWindowClose()
 	})
 	
 	// Create setup wizard with transition callback
@@ -112,12 +117,17 @@ func showMainApplication(fyneApp fyne.App, config *models.Config) {
 	// Setup window resize animation for QR section
 	setupWindowAnimation(mainWindow, mainUI)
 	
-	// Handle app termination cleanup
-	mainWindow.SetCloseIntercept(func() {
-		log.Println("🛑 App terminating - ensuring server shutdown...")
+	// Create system tray manager with cleanup callback
+	systemTray := ui.NewSystemTrayManager(fyneApp, mainWindow, func() {
+		log.Println("🛑 Quit requested from system tray - cleaning up...")
 		mainUI.Cleanup()
-		log.Println("✅ App termination cleanup completed")
-		fyneApp.Quit()
+	})
+	systemTray.Setup()
+	
+	// Handle app termination cleanup - now handles close button to hide window
+	mainWindow.SetCloseIntercept(func() {
+		log.Println("🪟 Window close requested - hiding to system tray...")
+		systemTray.HandleWindowClose()
 	})
 
 	// Load the music library AFTER UI is shown and initialized

@@ -2,6 +2,7 @@ package com.bma.android.ui.downloads
 
 import android.os.Bundle
 import android.view.View
+import android.widget.LinearLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -10,6 +11,8 @@ import com.bma.android.databinding.FragmentDownloadTabBinding
 import com.bma.android.storage.PlaylistManager
 import com.bma.android.models.Playlist
 import kotlinx.coroutines.launch
+import android.text.TextWatcher
+import android.text.Editable
 
 /**
  * Fragment for selecting playlists to download
@@ -35,9 +38,9 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
     }
     
     private fun setupUI() {
-        binding.tabIcon.text = "📋"
+        binding.tabIcon.setImageResource(R.drawable.ic_playlist)
         binding.tabTitle.text = "Playlists"
-        binding.tabSubtitle.text = "Download your custom playlists for offline listening"
+        binding.tabSubtitle.text = "Select All"
         
         binding.selectAllCheckbox.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked) {
@@ -51,8 +54,15 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
             showDeleteAllConfirmation()
         }
         
-        // TODO: Implement search functionality
-        // binding.searchEditText.addTextChangedListener { adapter.filter(it.toString()) }
+        binding.searchEditText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                val query = s?.toString() ?: ""
+                android.util.Log.d("DownloadPlaylistsFragment", "Search query changed: '$query'")
+                adapter.filter(query)
+            }
+        })
     }
     
     private fun setupRecyclerView() {
@@ -65,6 +75,7 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
                 } else {
                     selectedPlaylists.remove(playlistId)
                 }
+                adapter.updateSelection(playlistId, isSelected)
                 updateSelectionStatus()
             },
             onItemDeleted = {
@@ -102,8 +113,8 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
     }
     
     private fun selectAllPlaylists() {
-        adapter.selectAll()
         selectedPlaylists.addAll(adapter.getAllItemIds())
+        adapter.selectAll()
         updateSelectionStatus()
     }
     
@@ -135,14 +146,29 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
             // All items are downloaded - show delete mode
             binding.selectAllCheckbox.visibility = View.GONE
             binding.deleteAllButton.visibility = View.VISIBLE
-            binding.downloadStatusText.text = "✅ Already Downloaded!"
-            binding.downloadSizeText.text = "All playlists are on your device"
+            binding.downloadStatusText.text = "All playlists downloaded"
+            binding.downloadSizeText.text = ""
+            // Show check icon and set green tint for downloaded state
+            binding.downloadStatusText.setCompoundDrawablesWithIntrinsicBounds(
+                R.drawable.ic_check_circle, 0, 0, 0
+            )
+            binding.downloadStatusText.compoundDrawables[0]?.setTint(
+                android.graphics.Color.parseColor("#4CAF50")
+            )
+            // Add small spacing between status and songs, remove root bottom padding
+            setStatusCardBottomMargin(8)
+            setRootBottomPadding(0)
         } else {
             // Some items available for download - show selection mode
             binding.selectAllCheckbox.visibility = View.VISIBLE
             binding.deleteAllButton.visibility = View.GONE
             binding.downloadStatusText.text = "$selectedCount playlists selected for download"
             binding.downloadSizeText.text = "~${String.format("%.1f", estimatedSize)} MB"
+            // Hide check icon for selection mode
+            binding.downloadStatusText.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
+            // Add bottom spacing when download actions are needed, restore root bottom padding
+            setStatusCardBottomMargin(20)
+            setRootBottomPadding(16)
         }
         
         // Check if all available items are selected
@@ -156,6 +182,36 @@ class DownloadPlaylistsFragment : Fragment(R.layout.fragment_download_tab) {
         binding.emptyState.visibility = View.VISIBLE
         binding.itemsRecyclerView.visibility = View.GONE
         binding.emptyStateText.text = message
+    }
+    
+    /**
+     * Dynamically adjust bottom margin of status card based on download state
+     * @param marginDp Bottom margin in dp (8 for spacing when all downloaded, 20 for selection mode)
+     */
+    private fun setStatusCardBottomMargin(marginDp: Int) {
+        val statusCard = binding.root.findViewById<LinearLayout>(R.id.download_status_card)
+        statusCard?.let { card ->
+            val layoutParams = card.layoutParams as? android.view.ViewGroup.MarginLayoutParams
+            layoutParams?.let { params ->
+                val marginPx = (marginDp * resources.displayMetrics.density).toInt()
+                params.bottomMargin = marginPx
+                card.layoutParams = params
+            }
+        }
+    }
+    
+    /**
+     * Dynamically adjust root container bottom padding
+     * @param paddingDp Bottom padding in dp (0 when all downloaded, 16 for selection mode)
+     */
+    private fun setRootBottomPadding(paddingDp: Int) {
+        val paddingPx = (paddingDp * resources.displayMetrics.density).toInt()
+        binding.root.setPadding(
+            binding.root.paddingLeft,
+            binding.root.paddingTop, 
+            binding.root.paddingRight,
+            paddingPx
+        )
     }
     
     fun getSelectedPlaylistIds(): Set<String> = selectedPlaylists.toSet()

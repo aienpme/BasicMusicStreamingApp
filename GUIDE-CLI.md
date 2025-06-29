@@ -35,10 +35,6 @@ You'll need:
 curl -fsSL https://tailscale.com/install.sh | sh
 ```
 
-**On macOS:**
-1. Go to https://tailscale.com/download/mac
-2. Download and install the Tailscale app
-3. Open Tailscale from Applications
 
 ### Connect to Tailscale:
 1. In terminal, type:
@@ -100,12 +96,6 @@ go version
 
 You should see "go version go1.20.14 linux/arm64" or similar.
 
-### On macOS:
-1. Go to https://golang.org/dl/
-2. Download the macOS installer
-3. Double-click the downloaded file and follow the installer
-
----
 
 ## 📥 Step 3: Download BMA CLI
 
@@ -459,4 +449,6 @@ Now BMA CLI will start automatically every time you boot your Raspberry Pi!
 
 ## 🎉 You're Done!
 
-Your BMA CLI music server is now running and ready to stream your music.
+Your BMA CLI music server is now running and ready to stream your music. When the mobile app is available, you'll be able to connect to it and enjoy your music from anywhere!
+
+**Need help?** Check the main README.md file for more technical details.

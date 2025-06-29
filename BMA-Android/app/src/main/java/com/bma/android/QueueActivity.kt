@@ -73,11 +73,8 @@ class QueueActivity : AppCompatActivity(), ListenerManager.MusicServiceListener 
     private fun setupRecyclerView() {
         queueAdapter = QueueAdapter(
             onSongClick = { song, position -> 
-                // Jump to queue position and start playing
-                musicService?.let { service ->
-                    val success = service.jumpToQueuePosition(position)
-                    android.util.Log.d("QueueActivity", "Jump to position $position: $success")
-                }
+                // Passive click - just log the interaction, no queue changes
+                android.util.Log.d("QueueActivity", "🎵 Song clicked: ${song.title} at position $position (passive mode)")
             },
             onRemoveClick = { song, position ->
                 // Remove song from queue
@@ -96,16 +93,6 @@ class QueueActivity : AppCompatActivity(), ListenerManager.MusicServiceListener 
                     
                     val success = service.removeFromQueue(fullQueuePosition)
                     android.util.Log.d("QueueActivity", "Remove from full queue position $fullQueuePosition: $success")
-                }
-            },
-            onPlayPauseClick = {
-                // Toggle play/pause for current song
-                musicService?.let { service ->
-                    if (service.isPlaying()) {
-                        service.pause()
-                    } else {
-                        service.play()
-                    }
                 }
             },
             onReorder = { fromPosition, toPosition ->
@@ -153,22 +140,20 @@ class QueueActivity : AppCompatActivity(), ListenerManager.MusicServiceListener 
     
     private fun updateQueueDisplay() {
         musicService?.let { service ->
-            val currentSong = service.getCurrentSong()
             val upcomingQueue = service.getUpcomingQueue()
-            val isPlaying = service.isPlaying()
             
-            android.util.Log.d("QueueActivity", "Updating queue display - Current: ${currentSong?.title}, Queue size: ${upcomingQueue.size}")
+            android.util.Log.d("QueueActivity", "Updating queue display - Queue size: ${upcomingQueue.size}")
             
-            if (currentSong != null || upcomingQueue.isNotEmpty()) {
+            if (upcomingQueue.isNotEmpty()) {
                 // Show queue
                 binding.queueRecyclerView.isVisible = true
                 binding.emptyStateLayout.isVisible = false
                 
-                // Show UP NEXT header only if there are upcoming songs
-                binding.upNextHeader.isVisible = upcomingQueue.isNotEmpty()
+                // Show UP NEXT header
+                binding.upNextHeader.isVisible = true
                 
-                // Update adapter with current queue state
-                queueAdapter.updateQueue(currentSong, upcomingQueue, isPlaying)
+                // Update adapter with upcoming queue only
+                queueAdapter.updateQueue(upcomingQueue)
             } else {
                 // Show empty state
                 binding.queueRecyclerView.isVisible = false
@@ -195,8 +180,7 @@ class QueueActivity : AppCompatActivity(), ListenerManager.MusicServiceListener 
     }
     
     override fun onProgressChanged(progress: Int, duration: Int) {
-        // Update progress for current song in adapter
-        queueAdapter.updateProgress(progress, duration)
+        // Progress updates not needed since we don't show current song anymore
     }
     
     override fun onQueueChanged(queue: List<Song>) {

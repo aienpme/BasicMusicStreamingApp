@@ -163,11 +163,6 @@ class CreatePlaylistDialog : DialogFragment() {
                 val playlistManager = PlaylistManager.getInstance(requireContext())
                 val createdPlaylist = playlistManager.createPlaylist(playlistName, selectedSongIds)
                 
-                Toast.makeText(
-                    requireContext(), 
-                    "Created playlist '${createdPlaylist.name}' with ${selectedSongIds.size} songs", 
-                    Toast.LENGTH_SHORT
-                ).show()
                 
                 onPlaylistCreated?.invoke(createdPlaylist.id)
                 dismiss()

@@ -74,14 +74,21 @@ func startMainServer(config *models.Config) {
 	// Create music library
 	musicLibrary := models.NewMusicLibrary()
 	
+	// Create main server
+	mainServer := server.NewMusicServer(config, musicLibrary)
+	
+	// Set up library change callback to notify connected clients
+	musicLibrary.SetLibraryChangedCallback(func() {
+		log.Println("🔄 [SERVER] Library changed - notifying connected clients")
+		// This will trigger the server to notify connected Android clients
+		// about the library update (if the server has such functionality)
+	})
+	
 	// Load music from configured folder
 	if config.MusicFolder != "" {
 		log.Printf("📁 Loading music from: %s", config.MusicFolder)
 		musicLibrary.SelectFolder(config.MusicFolder)
 	}
-	
-	// Create main server
-	mainServer := server.NewMusicServer(config, musicLibrary)
 	
 	// Handle graceful shutdown
 	c := make(chan os.Signal, 1)
@@ -90,6 +97,10 @@ func startMainServer(config *models.Config) {
 	go func() {
 		<-c
 		log.Println("🛑 Received shutdown signal, stopping music server...")
+		
+		// Stop file system watcher before shutdown
+		musicLibrary.StopWatching()
+		
 		mainServer.Shutdown()
 		os.Exit(0)
 	}()

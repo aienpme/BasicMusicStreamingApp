@@ -56,10 +56,12 @@ func (sm *ServerManager) handleInfo(w http.ResponseWriter, r *http.Request) {
 	
 	// Get music library statistics
 	var albumCount, songCount int
+	var libraryVersion int64
 	if sm.musicLibrary != nil {
 		albumCount = sm.musicLibrary.GetAlbumCount()
 		songCount = sm.musicLibrary.GetSongCount()
-		log.Printf("📊 Music library stats: %d albums, %d songs", albumCount, songCount)
+		libraryVersion = sm.musicLibrary.GetLibraryVersion()
+		log.Printf("📊 Music library stats: %d albums, %d songs, version: %d", albumCount, songCount, libraryVersion)
 	}
 	
 	response := map[string]interface{}{
@@ -77,9 +79,10 @@ func (sm *ServerManager) handleInfo(w http.ResponseWriter, r *http.Request) {
 		}(),
 		// Music library statistics
 		"library": map[string]interface{}{
-			"albumCount": albumCount,
-			"songCount":  songCount,
-			"hasLibrary": sm.musicLibrary != nil,
+			"albumCount":     albumCount,
+			"songCount":      songCount,
+			"hasLibrary":     sm.musicLibrary != nil,
+			"libraryVersion": libraryVersion,
 		},
 	}
 	

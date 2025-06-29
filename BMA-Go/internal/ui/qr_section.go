@@ -2,7 +2,6 @@ package ui
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -55,14 +54,6 @@ func (s *QRCodeSection) setupUI() {
 	s.instructions.Alignment = fyne.TextAlignCenter
 	s.instructions.TextStyle = fyne.TextStyle{Italic: true}
 	
-	copyButton := customTheme.NewModernButton("Copy JSON", func() {
-		if s.jsonData != "" {
-			fyne.CurrentApp().Driver().AllWindows()[0].Clipboard().SetContent(s.jsonData)
-			log.Println("📋 JSON data copied to clipboard")
-		}
-	})
-	
-	saveButton := customTheme.NewModernButton("Save PNG", s.saveQRCodeAsPNG)
 	refreshButton := customTheme.NewModernButton("Refresh", func() {
 		// This will be connected by the parent
 	})
@@ -73,7 +64,7 @@ func (s *QRCodeSection) setupUI() {
 	closeButton.Importance = widget.HighImportance
 	
 	s.buttonRow = container.New(layout.NewHBoxLayout(),
-		copyButton, saveButton, refreshButton, layout.NewSpacer(), closeButton,
+		refreshButton, layout.NewSpacer(), closeButton,
 	)
 	
 	// Create a more compact layout with minimal spacing
@@ -100,6 +91,13 @@ func (q *QRCodeSection) SetQRCode(qrBytes []byte, jsonData string) {
 	if len(qrBytes) > 0 {
 		q.qrImage.Resource = fyne.NewStaticResource("qr_code.png", qrBytes)
 		q.qrImage.Refresh()
+		
+		// Force complete UI refresh to ensure visual update
+		if q.content != nil {
+			q.content.Refresh()
+		}
+		q.Refresh()
+		
 		log.Printf("📱 QR code resource updated: %d bytes", len(qrBytes))
 	}
 }
@@ -216,12 +214,12 @@ func (q *QRCodeSection) CreateRenderer() fyne.WidgetRenderer {
 	q.setupUI()
 
 	// Connect the refresh and close buttons now that they exist.
-	q.buttonRow.Objects[2].(*customTheme.ModernButton).OnTapped = func() {
+	q.buttonRow.Objects[0].(*customTheme.ModernButton).OnTapped = func() {
 		if q.onRefresh != nil {
 			q.onRefresh()
 		}
 	}
-	q.buttonRow.Objects[4].(*customTheme.ModernButton).OnTapped = func() {
+	q.buttonRow.Objects[2].(*customTheme.ModernButton).OnTapped = func() {
 		if q.onClose != nil {
 			q.onClose()
 		}
@@ -259,17 +257,6 @@ func (r *qrCodeSectionRenderer) Objects() []fyne.CanvasObject {
 
 func (r *qrCodeSectionRenderer) Destroy() {}
 
-// saveQRCodeAsPNG saves the QR code to a file.
-func (s *QRCodeSection) saveQRCodeAsPNG() {
-	if len(s.qrBytes) > 0 {
-		err := os.WriteFile("qr_code.png", s.qrBytes, 0644)
-		if err != nil {
-			log.Printf("❌ Failed to save QR code: %v", err)
-		} else {
-			log.Println("💾 QR code saved as qr_code.png")
-		}
-	}
-}
 
 // Animation Coordinator Interface Methods
 

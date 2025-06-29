@@ -1,47 +1,27 @@
 [
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_more_vert.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_more_vert.xml"
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_song_stats.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_song_stats.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_item_recent_search.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/item_recent_search.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_playlist_detail.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/fragment_playlist_detail.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/layout_fragment_loading.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/fragment_loading.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_chevron_down.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_chevron_down.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_song_in_album.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_song_in_album.xml"
+        "merged": "com.bma.android.app-merged_res-44:/layout_activity_streaming_stats.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/activity_streaming_stats.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_pause.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_pause.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_queue_song.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_queue_song.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_pause_circle.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_pause_circle.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_queue_current_song.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_queue_current_song.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_playlist.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_playlist.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_disconnect.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_disconnect.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/mipmap-xxhdpi_ic_launcher.webp.flat",
@@ -56,16 +36,16 @@
         "source": "com.bma.android.app-main-46:/mipmap-hdpi/ic_launcher_round.webp"
     },
     {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_empty_downloads.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_empty_downloads.xml"
+    },
+    {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_folder.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_folder.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_fragment_disconnection.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/fragment_disconnection.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_song_selectable.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_song_selectable.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_dialog_create_playlist.xml.flat",
@@ -84,8 +64,8 @@
         "source": "com.bma.android.app-main-46:/menu/bottom_nav_menu.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_circle_background.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/circle_background.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_connection.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_connection.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_fragment_welcome.xml.flat",
@@ -104,10 +84,6 @@
         "source": "com.bma.android.app-main-46:/mipmap-xxxhdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_library.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/fragment_library.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/layout_fragment_tailscale_check.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/fragment_tailscale_check.xml"
     },
@@ -116,32 +92,16 @@
         "source": "com.bma.android.app-main-46:/mipmap-xhdpi/ic_launcher.webp"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_edit_text_background.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/edit_text_background.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_chevron_right.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_chevron_right.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_recently_played_song.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_recently_played_song.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_artwork_background.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/artwork_background.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_activity_player.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/activity_player.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_qr_scanner_overlay.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/qr_scanner_overlay.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/anim_slide_in_left.xml.flat",
-        "source": "com.bma.android.app-main-46:/anim/slide_in_left.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_download_card_background.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/download_card_background.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_warning.xml.flat",
@@ -176,60 +136,36 @@
         "source": "com.bma.android.app-main-46:/drawable/ic_shuffle_off.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_shuffle.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_shuffle.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/layout_activity_main.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/activity_main.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_music_note.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_music_note.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
-        "source": "com.bma.android.app-main-46:/mipmap-anydpi-v26/ic_launcher_round.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_activity_setup.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/activity_setup.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_activity_album_detail.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/activity_album_detail.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_item_download_selection.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/item_download_selection.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_restore.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_restore.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/anim_slide_out_right.xml.flat",
         "source": "com.bma.android.app-main-46:/anim/slide_out_right.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/mipmap-xhdpi_ic_launcher_round.webp.flat",
-        "source": "com.bma.android.app-main-46:/mipmap-xhdpi/ic_launcher_round.webp"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/anim_slide_in_right.xml.flat",
-        "source": "com.bma.android.app-main-46:/anim/slide_in_right.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/anim_slide_out_left.xml.flat",
-        "source": "com.bma.android.app-main-46:/anim/slide_out_left.xml"
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_stats_list.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_stats_list.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_dialog_playlist_selection.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/dialog_playlist_selection.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_album_detail.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/fragment_album_detail.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/layout_item_playlist_selectable.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/item_playlist_selectable.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_download_selected.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_download_selected.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/xml_network_security_config.xml.flat",
@@ -252,8 +188,8 @@
         "source": "com.bma.android.app-main-46:/drawable/ic_repeat_off.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_skip_previous.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_skip_previous.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_album.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_album.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_add.xml.flat",
@@ -264,20 +200,12 @@
         "source": "com.bma.android.app-main-46:/xml/data_extraction_rules.xml"
     },
     {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_queue_bottom_sheet.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_queue_bottom_sheet.xml"
+    },
+    {
         "merged": "com.bma.android.app-merged_res-44:/mipmap-mdpi_ic_launcher_round.webp.flat",
         "source": "com.bma.android.app-main-46:/mipmap-mdpi/ic_launcher_round.webp"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_search.xml.flat",
-        "source": "com.bma.android.app-main-46:/drawable/ic_search.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.bma.android.app-main-46:/mipmap-xxhdpi/ic_launcher_round.webp"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/mipmap-anydpi-v26_ic_launcher.xml.flat",
-        "source": "com.bma.android.app-main-46:/mipmap-anydpi-v26/ic_launcher.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/color_bottom_nav_color.xml.flat",
@@ -288,16 +216,20 @@
         "source": "com.bma.android.app-main-46:/drawable/ic_logo.xml"
     },
     {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_download_settings.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_download_settings.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_download_manage.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_download_manage.xml"
+    },
+    {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_check_circle.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_check_circle.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_ic_play_arrow.xml.flat",
         "source": "com.bma.android.app-main-46:/drawable/ic_play_arrow.xml"
-    },
-    {
-        "merged": "com.bma.android.app-merged_res-44:/layout_mini_player.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/mini_player.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_scan_frame.xml.flat",
@@ -324,12 +256,12 @@
         "source": "com.bma.android.app-main-46:/layout/activity_download_selection.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_activity_qr_scanner.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/activity_qr_scanner.xml"
-    },
-    {
         "merged": "com.bma.android.app-merged_res-44:/layout_item_section_header.xml.flat",
         "source": "com.bma.android.app-main-46:/layout/item_section_header.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_activity_qr_scanner.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/activity_qr_scanner.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/layout_item_album_header.xml.flat",
@@ -344,6 +276,242 @@
         "source": "com.bma.android.app-main-46:/drawable/ic_repeat_one.xml"
     },
     {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_search.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_search.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.bma.android.app-main-46:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_download_card_background_selected.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/download_card_background_selected.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_album_stats.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_album_stats.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_more_vert.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_more_vert.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_search_modern.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_search_modern.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_clear_cache.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_clear_cache.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_playlist_detail.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_playlist_detail.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_skip_previous_mini.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_skip_previous_mini.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_album_artwork_background.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/album_artwork_background.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_chevron_down.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_chevron_down.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_song_in_album.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_song_in_album.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_queue_song.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_queue_song.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_pause_circle.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_pause_circle.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_search_modern_nav.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_search_modern_nav.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_backup.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_backup.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_playlist.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_playlist.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/anim_slide_out_down.xml.flat",
+        "source": "com.bma.android.app-main-46:/anim/slide_out_down.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_miniplayer_background.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/miniplayer_background.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_song_selectable.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_song_selectable.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_circle_background.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/circle_background.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_back_arrow.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_back_arrow.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_library.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_library.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_edit_text_background.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/edit_text_background.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_skip_next_mini.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_skip_next_mini.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_recently_played_song.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_recently_played_song.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_stats.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_stats.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_download_all.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_download_all.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_storage.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_storage.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_activity_player.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/activity_player.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_qr_scanner_overlay.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/qr_scanner_overlay.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_download_card_ripple.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/download_card_ripple.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/anim_slide_in_left.xml.flat",
+        "source": "com.bma.android.app-main-46:/anim/slide_in_left.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_artist_stats.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_artist_stats.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_shuffle.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_shuffle.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.bma.android.app-main-46:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_music_note.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_music_note.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_activity_album_detail.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/activity_album_detail.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_item_download_selection.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/item_download_selection.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.bma.android.app-main-46:/mipmap-xhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/anim_slide_in_right.xml.flat",
+        "source": "com.bma.android.app-main-46:/anim/slide_in_right.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/anim_slide_out_left.xml.flat",
+        "source": "com.bma.android.app-main-46:/anim/slide_out_left.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_download_card_selector.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/download_card_selector.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_album_detail.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/fragment_album_detail.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_repeat_spotify.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_repeat_spotify.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_library_modern.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_library_modern.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_skip_previous.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_skip_previous.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_bottom_sheet_handle.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/bottom_sheet_handle.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_search.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_search.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.bma.android.app-main-46:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.bma.android.app-main-46:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_settings_modern.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_settings_modern.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/layout_mini_player.xml.flat",
+        "source": "com.bma.android.app-main-46:/layout/mini_player.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/anim_slide_in_up.xml.flat",
+        "source": "com.bma.android.app-main-46:/anim/slide_in_up.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_miniplayer_progress_bar.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/miniplayer_progress_bar.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_queue_spotify.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_queue_spotify.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_delete_modern.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_delete_modern.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_drag_handle_modern.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_drag_handle_modern.xml"
+    },
+    {
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_offline.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_offline.xml"
+    },
+    {
         "merged": "com.bma.android.app-merged_res-44:/mipmap-mdpi_ic_launcher.webp.flat",
         "source": "com.bma.android.app-main-46:/mipmap-mdpi/ic_launcher.webp"
     },
@@ -352,12 +520,12 @@
         "source": "com.bma.android.app-main-46:/drawable/gradient_overlay.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/layout_fragment_search.xml.flat",
-        "source": "com.bma.android.app-main-46:/layout/fragment_search.xml"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_shuffle_spotify.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_shuffle_spotify.xml"
     },
     {
-        "merged": "com.bma.android.app-merged_res-44:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
-        "source": "com.bma.android.app-main-46:/mipmap-xxxhdpi/ic_launcher_round.webp"
+        "merged": "com.bma.android.app-merged_res-44:/drawable_ic_playlist.xml.flat",
+        "source": "com.bma.android.app-main-46:/drawable/ic_playlist.xml"
     },
     {
         "merged": "com.bma.android.app-merged_res-44:/drawable_rounded_background.xml.flat",

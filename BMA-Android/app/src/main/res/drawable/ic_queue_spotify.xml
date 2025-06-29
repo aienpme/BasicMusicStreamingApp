@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@android:color/white">
+    
+    <!-- Modern Spotify-style queue - simple horizontal lines -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,6H20C20.55,6 21,5.55 21,5C21,4.45 20.55,4 20,4H4C3.45,4 3,4.45 3,5C3,5.55 3.45,6 4,6Z"/>
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,13H20C20.55,13 21,12.55 21,12C21,11.45 20.55,11 20,11H4C3.45,11 3,11.45 3,12C3,12.55 3.45,13 4,13Z"/>
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M4,20H20C20.55,20 21,19.55 21,19C21,18.45 20.55,18 20,18H4C3.45,18 3,18.45 3,19C3,19.55 3.45,20 4,20Z"/>
+</vector> 

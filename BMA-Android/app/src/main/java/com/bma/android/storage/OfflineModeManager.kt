@@ -82,13 +82,11 @@ object OfflineModeManager {
     }
     
     /**
-     * Check if server is reachable for exiting offline mode
+     * Check server connection status for exiting offline mode
+     * @return ConnectionStatus indicating the current connection state
      */
-    suspend fun canExitOfflineMode(context: Context): Boolean {
-        return when (ApiClient.checkConnection(context)) {
-            ApiClient.ConnectionStatus.CONNECTED -> true
-            else -> false
-        }
+    suspend fun getExitOfflineModeStatus(context: Context): ApiClient.ConnectionStatus {
+        return ApiClient.checkConnection(context)
     }
     
     /**

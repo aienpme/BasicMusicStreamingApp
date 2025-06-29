@@ -17,6 +17,8 @@ import com.bma.android.databinding.ItemSongInAlbumBinding
 import com.bma.android.databinding.ActivityAlbumDetailBinding
 import com.bma.android.models.Album
 import com.bma.android.models.Song
+import com.bma.android.storage.PlaylistManager
+import com.bma.android.ui.playlist.PlaylistSelectionDialog
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.model.GlideUrl
@@ -26,7 +28,9 @@ import com.bma.android.ui.library.LibraryFragment
 import com.bma.android.ui.search.SearchFragment
 import com.bma.android.ui.settings.SettingsFragment
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.bma.android.service.components.ListenerManager
+import kotlinx.coroutines.launch
 
 class AlbumDetailActivity : AppCompatActivity(), ListenerManager.MusicServiceListener {
 
@@ -172,10 +176,11 @@ class AlbumDetailActivity : AppCompatActivity(), ListenerManager.MusicServiceLis
     private fun showSongOptions(song: Song) {
         android.app.AlertDialog.Builder(this)
             .setTitle(song.title)
-            .setItems(arrayOf("Add to Queue", "Add Next")) { _, which ->
+            .setItems(arrayOf("Add to Queue", "Add Next", "Add to playlist")) { _, which ->
                 when (which) {
                     0 -> addToQueue(song)
                     1 -> addNext(song)
+                    2 -> showPlaylistSelectionDialog(song)
                 }
             }
             .show()
@@ -189,6 +194,20 @@ class AlbumDetailActivity : AppCompatActivity(), ListenerManager.MusicServiceLis
     private fun addNext(song: Song) {
         musicService?.addNext(song)
         Toast.makeText(this, "Added next: ${song.title}", Toast.LENGTH_SHORT).show()
+    }
+    
+    private fun showPlaylistSelectionDialog(song: Song) {
+        lifecycleScope.launch {
+            try {
+                val playlistManager = PlaylistManager.getInstance(this@AlbumDetailActivity)
+                val allSongs = playlistManager.getAllSongs()
+                
+                val dialog = PlaylistSelectionDialog.newInstance(song, allSongs)
+                dialog.show(supportFragmentManager, "PlaylistSelectionDialog")
+            } catch (e: Exception) {
+                Toast.makeText(this@AlbumDetailActivity, "No songs available", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupToolbar() {

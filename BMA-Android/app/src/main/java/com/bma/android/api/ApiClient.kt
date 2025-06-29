@@ -70,13 +70,15 @@ object ApiClient {
                     return ConnectionStatus.TOKEN_EXPIRED
                 }
                 
-                // Test with auth header
+                // Token appears valid based on expiry time, verify with server
+                // Only make this call if token is not expired to avoid unnecessary 401s
                 try {
                     val songs = api.getSongs(getAuthHeader()!!)
                     ConnectionStatus.CONNECTED
                 } catch (e: Exception) {
-                    android.util.Log.e("ApiClient", "Auth check failed", e)
-                    // If auth fails but server is up, token is likely invalid
+                    android.util.Log.e("ApiClient", "Auth check failed despite valid expiry time", e)
+                    // If auth fails but server is up and token isn't expired by time,
+                    // token might be invalidated on server side
                     ConnectionStatus.TOKEN_EXPIRED
                 }
             } finally {
@@ -189,6 +191,15 @@ object ApiClient {
     
     val api: BmaApi by lazy {
         getClient().create(BmaApi::class.java)
+    }
+    
+    // Complete state reset for clean disconnection/re-pairing
+    fun clearAll() {
+        baseUrl = ""
+        authToken = null
+        onAuthFailure = null
+        resetClient() // Clears retrofit instance
+        android.util.Log.d("ApiClient", "All state cleared completely")
     }
     
     // Additional methods for offline mode integration

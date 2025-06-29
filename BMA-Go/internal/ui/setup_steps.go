@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -86,6 +87,31 @@ func NewTailscaleStep() *TailscaleStep {
 	return &TailscaleStep{}
 }
 
+// openBrowser opens the given URL in the default browser across platforms
+func (s *TailscaleStep) openBrowser(url string) error {
+	var cmd *exec.Cmd
+	
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "linux":
+		cmd = exec.Command("xdg-open", url)
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	default:
+		log.Printf("🌐 [BROWSER] Unsupported platform: %s", runtime.GOOS)
+		return nil // Don't return error, just log
+	}
+	
+	if err := cmd.Start(); err != nil {
+		log.Printf("🌐 [BROWSER] Failed to open browser: %v", err)
+		return err
+	}
+	
+	log.Printf("🌐 [BROWSER] Opened %s on %s", url, runtime.GOOS)
+	return nil
+}
+
 func (s *TailscaleStep) GetContent() fyne.CanvasObject {
 	if s.content == nil {
 		title := widget.NewLabelWithStyle("Tailscale Setup", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
@@ -102,8 +128,10 @@ func (s *TailscaleStep) GetContent() fyne.CanvasObject {
 		
 		// Clean buttons without icons
 		s.downloadButton = customTheme.NewModernButton("Open Download Page", func() {
-			// Open browser to Tailscale download page
-			exec.Command("open", "https://tailscale.com/download").Start()
+			// Open browser to Tailscale download page using cross-platform method
+			if err := s.openBrowser("https://tailscale.com/download"); err != nil {
+				log.Printf("🌐 [BROWSER] Failed to open Tailscale download page: %v", err)
+			}
 		})
 		s.downloadButton.SetImportance(widget.HighImportance)
 		
@@ -135,22 +163,55 @@ func (s *TailscaleStep) GetContent() fyne.CanvasObject {
 }
 
 func (s *TailscaleStep) checkTailscaleInstallation() {
-	// Check multiple ways Tailscale might be installed
-	s.isInstalled = s.isTailscaleInstalled()
+	log.Println("🔍 [TAILSCALE] Starting Tailscale detection...")
 	
-	if s.isInstalled {
-		// Tailscale found
-		s.statusBadge.Status = "Installed"
+	// Update status to show we're checking
+	s.statusBadge.Status = "Checking..."
+	s.statusBadge.BadgeColor = customTheme.StatusInfo
+	s.statusBadge.Refresh()
+	
+	// Check if Tailscale is installed
+	installPath, isInstalled := s.findTailscaleInstallation()
+	
+	if !isInstalled {
+		log.Println("❌ [TAILSCALE] Not found - showing download options")
+		s.isInstalled = false
+		s.statusBadge.Status = "Not Found"
+		s.statusBadge.BadgeColor = customTheme.TextMuted
+		s.statusBadge.Refresh()
+		s.downloadButton.Show()
+		s.recheckButton.Show()
+		
+		if s.onStateChange != nil {
+			s.onStateChange()
+		}
+		return
+	}
+	
+	log.Printf("✅ [TAILSCALE] Found installation at: %s", installPath)
+	
+	// Now check if it's actually running/functional
+	s.statusBadge.Status = "Verifying..."
+	s.statusBadge.BadgeColor = customTheme.StatusInfo
+	s.statusBadge.Refresh()
+	
+	isRunning, statusMsg := s.checkTailscaleStatus(installPath)
+	
+	if isRunning {
+		log.Printf("🟢 [TAILSCALE] Running and connected: %s", statusMsg)
+		s.isInstalled = true
+		s.statusBadge.Status = "Connected"
 		s.statusBadge.BadgeColor = customTheme.StatusSuccess
 		s.statusBadge.Refresh()
 		s.downloadButton.Hide()
 		s.recheckButton.Hide()
 	} else {
-		// Tailscale not found
-		s.statusBadge.Status = "Not Found"
-		s.statusBadge.BadgeColor = customTheme.TextMuted
+		log.Printf("🟡 [TAILSCALE] Installed but not running: %s", statusMsg)
+		s.isInstalled = false
+		s.statusBadge.Status = "Installed (Not Running)"
+		s.statusBadge.BadgeColor = customTheme.StatusWarning
 		s.statusBadge.Refresh()
-		s.downloadButton.Show()
+		s.downloadButton.Hide()
 		s.recheckButton.Show()
 	}
 	
@@ -160,35 +221,69 @@ func (s *TailscaleStep) checkTailscaleInstallation() {
 	}
 }
 
-// isTailscaleInstalled checks for Tailscale installation in multiple ways
-func (s *TailscaleStep) isTailscaleInstalled() bool {
+// findTailscaleInstallation checks for Tailscale installation and returns path + status
+func (s *TailscaleStep) findTailscaleInstallation() (string, bool) {
 	// Method 1: Check if running in Flatpak and use flatpak-spawn
 	if s.isRunningInFlatpak() {
+		log.Println("🔍 [TAILSCALE] Checking Flatpak environment...")
 		if s.checkTailscaleViaFlatpak() {
-			return true
+			log.Println("✅ [TAILSCALE] Found via flatpak-spawn")
+			return "flatpak-spawn", true
 		}
+		log.Println("❌ [TAILSCALE] Not found in Flatpak")
 	}
 	
 	// Method 2: Check if tailscale CLI is in PATH
-	if _, err := exec.LookPath("tailscale"); err == nil {
-		return true
+	log.Println("🔍 [TAILSCALE] Checking PATH...")
+	if path, err := exec.LookPath("tailscale"); err == nil {
+		log.Printf("✅ [TAILSCALE] Found in PATH: %s", path)
+		return path, true
 	}
+	log.Println("❌ [TAILSCALE] Not found in PATH")
 	
 	// Method 3: Check for macOS app installation
-	if s.checkMacOSApp() {
-		return true
+	if runtime.GOOS == "darwin" {
+		log.Println("🔍 [TAILSCALE] Checking macOS app locations...")
+		if path := s.checkMacOSApp(); path != "" {
+			log.Printf("✅ [TAILSCALE] Found macOS app: %s", path)
+			return path, true
+		}
+		log.Println("❌ [TAILSCALE] macOS app not found")
 	}
 	
 	// Method 4: Check for Homebrew installation
-	if s.checkHomebrewInstallation() {
-		return true
+	if runtime.GOOS == "darwin" {
+		log.Println("🔍 [TAILSCALE] Checking Homebrew locations...")
+		if path := s.checkHomebrewInstallation(); path != "" {
+			log.Printf("✅ [TAILSCALE] Found Homebrew installation: %s", path)
+			return path, true
+		}
+		log.Println("❌ [TAILSCALE] Homebrew installation not found")
 	}
 	
-	return false
+	// Method 5: Check for Linux package manager installations
+	if runtime.GOOS == "linux" {
+		log.Println("🔍 [TAILSCALE] Checking Linux package locations...")
+		linuxPaths := []string{
+			"/usr/bin/tailscale",
+			"/usr/local/bin/tailscale",
+			"/snap/bin/tailscale",
+		}
+		for _, path := range linuxPaths {
+			if _, err := os.Stat(path); err == nil {
+				log.Printf("✅ [TAILSCALE] Found Linux installation: %s", path)
+				return path, true
+			}
+		}
+		log.Println("❌ [TAILSCALE] Linux package installations not found")
+	}
+	
+	log.Println("❌ [TAILSCALE] No installation found")
+	return "", false
 }
 
-// checkMacOSApp checks if Tailscale is installed as a macOS app
-func (s *TailscaleStep) checkMacOSApp() bool {
+// checkMacOSApp checks if Tailscale is installed as a macOS app and returns the path
+func (s *TailscaleStep) checkMacOSApp() string {
 	// Check for standard macOS app installation
 	appPaths := []string{
 		"/Applications/Tailscale.app/Contents/MacOS/Tailscale",
@@ -197,15 +292,15 @@ func (s *TailscaleStep) checkMacOSApp() bool {
 	
 	for _, path := range appPaths {
 		if _, err := os.Stat(path); err == nil {
-			return true
+			return path
 		}
 	}
 	
-	return false
+	return ""
 }
 
-// checkHomebrewInstallation checks for Homebrew-installed tailscale
-func (s *TailscaleStep) checkHomebrewInstallation() bool {
+// checkHomebrewInstallation checks for Homebrew-installed tailscale and returns the path
+func (s *TailscaleStep) checkHomebrewInstallation() string {
 	brewPaths := []string{
 		"/usr/local/bin/tailscale",
 		"/opt/homebrew/bin/tailscale",
@@ -213,11 +308,11 @@ func (s *TailscaleStep) checkHomebrewInstallation() bool {
 	
 	for _, path := range brewPaths {
 		if _, err := os.Stat(path); err == nil {
-			return true
+			return path
 		}
 	}
 	
-	return false
+	return ""
 }
 
 // isRunningInFlatpak checks if the application is running inside a Flatpak sandbox
@@ -233,6 +328,54 @@ func (s *TailscaleStep) checkTailscaleViaFlatpak() bool {
 	cmd := exec.Command("flatpak-spawn", "--host", "tailscale", "version")
 	err := cmd.Run()
 	return err == nil
+}
+
+// checkTailscaleStatus verifies if Tailscale is actually running and connected
+func (s *TailscaleStep) checkTailscaleStatus(installPath string) (bool, string) {
+	log.Printf("🔍 [TAILSCALE] Checking status using: %s", installPath)
+	
+	var cmd *exec.Cmd
+	
+	// Handle different installation types
+	if installPath == "flatpak-spawn" {
+		cmd = exec.Command("flatpak-spawn", "--host", "tailscale", "status")
+	} else {
+		// For regular installations, try to run tailscale status
+		cmd = exec.Command("tailscale", "status")
+	}
+	
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("❌ [TAILSCALE] Status command failed: %v", err)
+		return false, "Status command failed"
+	}
+	
+	statusOutput := string(output)
+	log.Printf("📊 [TAILSCALE] Status output: %s", statusOutput)
+	
+	// Check for common indicators that Tailscale is connected
+	if strings.Contains(statusOutput, "logged out") {
+		return false, "Not logged in"
+	}
+	if strings.Contains(statusOutput, "stopped") {
+		return false, "Stopped"
+	}
+	if strings.Contains(statusOutput, "NeedsLogin") {
+		return false, "Needs login"
+	}
+	if strings.Contains(statusOutput, "NoState") {
+		return false, "Not initialized"
+	}
+	
+	// If we get here and have some output, Tailscale is likely running
+	// Look for positive indicators
+	if strings.Contains(statusOutput, "100.") || // Tailscale IP address
+	   strings.Contains(statusOutput, "Running") ||
+	   len(strings.TrimSpace(statusOutput)) > 10 { // Has substantial output
+		return true, "Connected"
+	}
+	
+	return false, "Unknown status"
 }
 
 // SetStateChangeCallback sets the callback for when installation state changes

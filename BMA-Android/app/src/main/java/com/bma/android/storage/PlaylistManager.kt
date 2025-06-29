@@ -5,6 +5,7 @@ import android.net.Uri
 import com.bma.android.models.Playlist
 import com.bma.android.models.Song
 import com.bma.android.models.Album
+import com.bma.android.models.IndividualStatsData
 import com.bma.android.api.ApiClient
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -326,6 +327,32 @@ class PlaylistManager private constructor(private val context: Context) {
     }
     
     /**
+     * Cache songs from backup for offline/restored playlist access
+     */
+    private suspend fun cacheSongsFromBackup(songs: List<Song>) = withContext(Dispatchers.IO) {
+        try {
+            val cacheFile = File(context.filesDir, "backup_songs_cache.json")
+            val existingCache = if (cacheFile.exists()) {
+                val json = cacheFile.readText()
+                gson.fromJson(json, object : com.google.gson.reflect.TypeToken<MutableMap<String, Song>>() {}.type) 
+                    ?: mutableMapOf<String, Song>()
+            } else {
+                mutableMapOf<String, Song>()
+            }
+            
+            // Add all songs from backup to cache
+            songs.forEach { song ->
+                existingCache[song.id] = song
+            }
+            
+            cacheFile.writeText(gson.toJson(existingCache))
+            android.util.Log.d("PlaylistManager", "Cached ${songs.size} songs from backup for playlist restoration")
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error caching songs from backup", e)
+        }
+    }
+    
+    /**
      * Cache downloaded song metadata for offline access
      */
     private suspend fun cacheDownloadedSong(song: Song) = withContext(Dispatchers.IO) {
@@ -344,6 +371,28 @@ class PlaylistManager private constructor(private val context: Context) {
             android.util.Log.d("PlaylistManager", "Cached song metadata: ${song.title}")
         } catch (e: Exception) {
             android.util.Log.e("PlaylistManager", "Error caching song metadata", e)
+        }
+    }
+    
+    /**
+     * Get cached songs from backup (for restored playlists)
+     */
+    private suspend fun getBackupCachedSongs(): Map<String, Song> = withContext(Dispatchers.IO) {
+        try {
+            val cacheFile = File(context.filesDir, "backup_songs_cache.json")
+            if (cacheFile.exists()) {
+                val json = cacheFile.readText()
+                val cache: Map<String, Song> = gson.fromJson(json, object : com.google.gson.reflect.TypeToken<Map<String, Song>>() {}.type) 
+                    ?: emptyMap()
+                android.util.Log.d("PlaylistManager", "Retrieved ${cache.size} cached backup song objects")
+                return@withContext cache
+            } else {
+                android.util.Log.d("PlaylistManager", "No backup song cache file found")
+                return@withContext emptyMap()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error reading backup cached songs", e)
+            return@withContext emptyMap()
         }
     }
     
@@ -526,15 +575,42 @@ class PlaylistManager private constructor(private val context: Context) {
             
             saveAppData(finalAppData)
             
+            // Restore song metadata cache if available
+            if (!backupData.songs.isNullOrEmpty()) {
+                android.util.Log.d("PlaylistManager", "Restoring ${backupData.songs.size} songs metadata from backup")
+                cacheSongsFromBackup(backupData.songs)
+            }
+            
+            // Restore individual stats if available
+            if (backupData.individualStats != null) {
+                try {
+                    if (mergeWithExisting) {
+                        android.util.Log.d("PlaylistManager", "Individual stats merge not yet implemented - replacing existing stats")
+                    }
+                    IndividualStatsManager.getInstance(context).importFromBackup(backupData.individualStats)
+                    android.util.Log.d("PlaylistManager", "Restored ${backupData.individualStats.songStats.size} individual song stats from backup")
+                } catch (e: Exception) {
+                    android.util.Log.e("PlaylistManager", "Error restoring individual stats from backup", e)
+                }
+            }
+            
             val statsMessage = if (importedStats != null) {
                 val action = if (mergeWithExisting) "merged" else "restored"
                 " and streaming stats $action"
             } else ""
             
+            val individualStatsMessage = if (backupData.individualStats != null) {
+                " and individual stats restored"
+            } else ""
+            
+            val songsMessage = if (!backupData.songs.isNullOrEmpty()) {
+                " with ${backupData.songs.size} songs metadata"
+            } else ""
+            
             val message = if (mergeWithExisting) {
-                "Successfully imported ${importedPlaylists.size} playlists (merged with existing)$statsMessage"
+                "Successfully imported ${importedPlaylists.size} playlists (merged with existing)$statsMessage$individualStatsMessage$songsMessage"
             } else {
-                "Successfully imported ${importedPlaylists.size} playlists (replaced existing)$statsMessage"
+                "Successfully imported ${importedPlaylists.size} playlists (replaced existing)$statsMessage$individualStatsMessage$songsMessage"
             }
             
             android.util.Log.d("PlaylistManager", message)
@@ -560,12 +636,44 @@ class PlaylistManager private constructor(private val context: Context) {
      */
     private suspend fun createBackupData(playlists: List<Playlist>): BackupData {
         val currentStreamingStats = getStreamingStats()
+        
+        // Collect all unique song IDs from all playlists
+        val allSongIds = playlists.flatMap { it.songIds }.toSet()
+        
+        // Fetch song metadata for all referenced songs
+        val allAvailableSongs = try {
+            getAllSongs()
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error fetching songs for backup", e)
+            emptyList()
+        }
+        
+        // Filter to only include songs that are in playlists
+        val songsToBackup = allAvailableSongs.filter { song ->
+            allSongIds.contains(song.id)
+        }
+        
+        // Include individual stats in backup
+        val individualStats = try {
+            IndividualStatsManager.getInstance(context).exportForBackup()
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error fetching individual stats for backup", e)
+            null
+        }
+        
+        android.util.Log.d("PlaylistManager", "Backing up ${songsToBackup.size} songs metadata for ${allSongIds.size} playlist song references")
+        if (individualStats != null) {
+            android.util.Log.d("PlaylistManager", "Including ${individualStats.songStats.size} individual song stats in backup")
+        }
+        
         return BackupData(
             version = BACKUP_VERSION,
             exportDate = System.currentTimeMillis(),
             playlistCount = playlists.size,
             playlists = playlists,
-            streamingStats = currentStreamingStats
+            streamingStats = currentStreamingStats,
+            songs = songsToBackup,
+            individualStats = individualStats
         )
     }
     
@@ -617,7 +725,9 @@ class PlaylistManager private constructor(private val context: Context) {
         val exportDate: Long,
         val playlistCount: Int,
         val playlists: List<Playlist>,
-        val streamingStats: StreamingStats? = null  // Optional for backward compatibility
+        val streamingStats: StreamingStats? = null,  // Optional for backward compatibility
+        val songs: List<Song>? = null,  // Songs metadata for playlist restoration
+        val individualStats: IndividualStatsData? = null  // Individual song/album/artist stats for backup
     )
     
     /**
@@ -677,7 +787,26 @@ class PlaylistManager private constructor(private val context: Context) {
                 return@withContext emptyList()
             }
             
-            val allSongs = getAllSongs()
+            // Check backup cache first - it contains restored playlist songs
+            var allSongs = getBackupCachedSongs().values.toList()
+            if (allSongs.isNotEmpty()) {
+                android.util.Log.d("PlaylistManager", "Using ${allSongs.size} songs from backup cache (restored data)")
+            } else {
+                // Fallback to API if no backup cache available
+                allSongs = try {
+                    val apiSongs = getAllSongs()
+                    if (apiSongs.isNotEmpty()) {
+                        android.util.Log.d("PlaylistManager", "Using ${apiSongs.size} songs from API")
+                    } else {
+                        android.util.Log.d("PlaylistManager", "API returned no songs")
+                    }
+                    apiSongs
+                } catch (e: Exception) {
+                    android.util.Log.w("PlaylistManager", "Failed to get songs from API", e)
+                    emptyList()
+                }
+            }
+            
             val playlistSongs = playlist.getSongs(allSongs)
             android.util.Log.d("PlaylistManager", "Found ${playlistSongs.size} songs for playlist: ${playlist.name}")
             return@withContext playlistSongs
@@ -822,8 +951,8 @@ class PlaylistManager private constructor(private val context: Context) {
     }
     
     /**
-     * Get only playlists that have downloaded songs when in offline mode
-     * @return List of playlists with at least one downloaded song
+     * Get all playlists when in offline mode (including empty ones)
+     * @return List of all playlists - songs within playlists are filtered separately
      */
     suspend fun getPlaylistsOffline(): List<Playlist> = withContext(Dispatchers.IO) {
         try {
@@ -831,18 +960,19 @@ class PlaylistManager private constructor(private val context: Context) {
             val downloadStats = getDownloadStats()
             val downloadedSongIds = downloadStats.downloadedSongs
             
-            if (downloadedSongIds.isEmpty()) {
-                android.util.Log.d("PlaylistManager", "Offline mode: No downloaded songs, no playlists available")
-                return@withContext emptyList()
+            android.util.Log.d("PlaylistManager", "Offline mode: Showing all ${allPlaylists.size} playlists (including empty ones)")
+            android.util.Log.d("PlaylistManager", "Downloaded songs available: ${downloadedSongIds.size}")
+            
+            // Return all playlists - individual playlist content is filtered when accessing songs
+            // This ensures empty playlists remain visible for playlist management
+            allPlaylists.forEach { playlist ->
+                val downloadedSongsInPlaylist = playlist.songIds.count { songId -> 
+                    downloadedSongIds.contains(songId) 
+                }
+                android.util.Log.d("PlaylistManager", "Playlist '${playlist.name}': ${playlist.songIds.size} total songs, $downloadedSongsInPlaylist downloaded")
             }
             
-            // Filter playlists that have at least one downloaded song
-            val offlinePlaylists = allPlaylists.filter { playlist ->
-                playlist.songIds.any { songId -> downloadedSongIds.contains(songId) }
-            }
-            
-            android.util.Log.d("PlaylistManager", "Offline mode: ${offlinePlaylists.size} playlists with downloaded songs")
-            return@withContext offlinePlaylists
+            return@withContext allPlaylists
         } catch (e: Exception) {
             android.util.Log.e("PlaylistManager", "Error getting offline playlists", e)
             return@withContext emptyList()
@@ -933,6 +1063,101 @@ class PlaylistManager private constructor(private val context: Context) {
         } catch (e: Exception) {
             android.util.Log.e("PlaylistManager", "Error getting offline counts", e)
             return@withContext Triple(0, 0, 0)
+        }
+    }
+    
+    // SYNC METHODS FOR OFFLINE ↔ ONLINE MODE TRANSITIONS
+    
+    /**
+     * Sync playlists from offline mode back to online mode
+     * This ensures that playlists created/modified while offline are available when going back online
+     */
+    suspend fun syncPlaylistsOfflineToOnline() = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("PlaylistManager", "Starting playlist sync from offline to online mode")
+            
+            // Get current playlists (these include any created/modified offline)
+            val currentPlaylists = loadPlaylists()
+            
+            // Check if we have any playlists to sync
+            if (currentPlaylists.isEmpty()) {
+                android.util.Log.d("PlaylistManager", "No playlists to sync")
+                return@withContext
+            }
+            
+            // For now, playlists are stored locally so they're already "synced"
+            // In the future, this could upload playlist changes to a server
+            
+            // Log the sync activity
+            android.util.Log.d("PlaylistManager", "Playlist sync completed: ${currentPlaylists.size} playlists available for online mode")
+            
+            // Clear any temporary offline-only caches if needed
+            // (Currently not needed as we use unified storage)
+            
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error syncing playlists from offline to online", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Sync playlists from online mode to offline mode
+     * This ensures that new playlists created online are available offline
+     */
+    suspend fun syncPlaylistsOnlineToOffline() = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("PlaylistManager", "Starting playlist sync from online to offline mode")
+            
+            // Get current playlists (these include any created/modified online)
+            val currentPlaylists = loadPlaylists()
+            
+            // Check if we have any playlists to sync
+            if (currentPlaylists.isEmpty()) {
+                android.util.Log.d("PlaylistManager", "No playlists to sync")
+                return@withContext
+            }
+            
+            // For now, playlists are stored locally so they're already "synced"
+            // In the future, this could download playlist metadata from a server
+            
+            // Log the sync activity
+            android.util.Log.d("PlaylistManager", "Playlist sync completed: ${currentPlaylists.size} playlists available for offline mode")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error syncing playlists from online to offline", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Check for playlist conflicts between online and offline versions
+     * @return List of playlists that have been modified in both modes
+     */
+    suspend fun detectPlaylistConflicts(): List<Playlist> = withContext(Dispatchers.IO) {
+        try {
+            // For now, return empty list as we use unified storage
+            // In the future, this could compare local vs server versions
+            return@withContext emptyList()
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error detecting playlist conflicts", e)
+            return@withContext emptyList()
+        }
+    }
+    
+    /**
+     * Force refresh playlists data (useful after mode transitions)
+     */
+    suspend fun refreshPlaylistsData() = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("PlaylistManager", "Refreshing playlists data after mode transition")
+            
+            // Simply reload from storage to ensure we have the latest data
+            val playlists = loadPlaylists()
+            android.util.Log.d("PlaylistManager", "Refreshed: ${playlists.size} playlists available")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistManager", "Error refreshing playlists data", e)
+            throw e
         }
     }
 }

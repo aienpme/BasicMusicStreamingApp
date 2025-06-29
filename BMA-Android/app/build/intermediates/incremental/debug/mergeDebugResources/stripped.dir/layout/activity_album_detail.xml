@@ -157,7 +157,7 @@
         android:id="@+id/mini_player"
         layout="@layout/mini_player"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="68dp"
         android:layout_gravity="bottom"
         android:layout_marginBottom="56dp" />
 

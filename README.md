@@ -1,57 +1,61 @@
-🎵 **BMA** – Basic Music App
+# 🎵 BMA – Basic Music App
 
 A secure, self-hosted music streaming solution built in Go (Desktop & CLI) and Kotlin (Android).
 
-YouTube Video Demonstration: https://youtu.be/rI8Mi4uP3KQ
+---
 
-🖥️ What is **BMA**?
+## 🖥️ What is BMA?
 
-BMA turns your personal music library into a private streaming service — powered by your own devices. Whether you're on a PC, Mac, Linux machine, or a Raspberry Pi, BMA lets you stream music to your Android phone securely using Tailscale, without exposing anything to the public internet.
-There's no cloud, no port forwarding, and no privacy trade-offs — just instant, encrypted access to your music wherever you are.
+BMA transforms your personal music library into a private, full-featured streaming service powered entirely by your own devices. Whether you're running it on a PC, Mac, Linux box, or Raspberry Pi, BMA streams your collection to your Android phone using **Tailscale** — no port forwarding, no public IPs, and no cloud dependency.
 
-🛠️ **How It Works**
+💡 **Zero cloud. Zero exposure. 100% encrypted.**
 
-- The desktop app (Go + Fyne) lets you select a local folder as your music library.
-- The server runs locally and streams your music over HTTP via Tailscale's secure mesh VPN.
-- Your Android device connects by scanning a QR code, pairing instantly with the server.
-- Metadata is retrieved, albums are organized, and the music starts flowing — just like a private Spotify.
-- A CLI version is available for Raspberry Pi, ideal for low-power streaming setups. Supports setup via browser and runs headlessly.
+---
 
-🔐 **Note: Music currently streams over HTTP within Tailscale's encrypted tunnel.**
+## 🚀 Key Features
 
-🚀 **Key Features**
+### 📱 Android App
+- ✨ **Modernized UI** – Sleek new design with smoother performance.
+- 🔗 **One-tap pairing** – Connect to your server via a secure QR code.
+- 🧭 **Navigation fixes** – Reliable and intuitive screen transitions.
+- 🎵 **Improved album browsing** – Better rendering of album artwork and tracks.
+- 📐 **Queue redesign** – Streamlined queue interface with new styling and controls.
+- 📊 **Advanced streaming stats** – View top songs, albums, and artists by play frequency.
+- 📡 **Offline mode upgrades**:
+  - Track your stats even when offline.
+  - Manually enter offline mode.
+  - Seamless sync when switching between modes.
+- 🎛️ **Gesture support** – Swipe between songs on both full player and miniplayer.
+- 🛠️ **Error handling improvements** – Greater app stability and fewer crashes.
+- 🔧 **Tailscale enhancements** – Uses IPs instead of hostnames, with clearer connection issue messages.
 
-✅ **One-tap pairing** – Instantly connect your Android device to the server using a secure QR code.  
-🎵 **Organized album browsing** – Albums are displayed with full track listings for smooth navigation.  
-🔊 **Intuitive mini player** – Access playbook controls (play/pause, next, previous, shuffle, repeat) at any time.  
-🔍 **Powerful search** – Quickly find albums or individual tracks from your library.  
-📶 **Live connection feedback** – View server status and connection info directly in the app's settings.  
-📡 **Auto-reconnect** – The app automatically reconnects to your server whenever it's available.  
-🎚️ **Notification controls** – Control playback directly from your notification shade and lockscreen.  
-📊 **Streaming stats** – Track your listening time with real-time minute counters.  
-⬇️ **Library downloads** – Download your entire music collection to your device for offline access.  
-📡 **True offline mode** – Seamlessly switch to offline playback when disconnected, with full search functionality.  
-⚡ **Smart caching** – Recently played tracks load faster with intelligent caching.  
-💾 **Improved backups** – Properly restore streaming stats and playlists.
+### 🖥️ Desktop App
+- 🖼️ **Cover art support** – Album artwork now displayed properly.
+- 📷 **Improved QR code generation** – More reliable and faster device pairing.
+- 📡 **Tailscale checks** – Smarter network connectivity validation.
+- 🧹 **Stability improvements** – Reduced crashes and better error handling.
 
-🧩 **Recent Updates**
+### 🖧 Server
+- 📁 **Auto album detection** – Albums are now automatically detected from your library.
+- 🔄 **Library version tracking** – Enables better sync and data consistency.
 
-🖥️ **Desktop & CLI Improvements:**
-- Completely refactored codebase with modular architecture
-- Fresh, modern UI design for desktop app
-- Enhanced stability and error handling
-- Fixed Tailscale detection issues on Linux systems
+---
 
-📱 **Android App Overhaul:**
-- Real-time streaming statistics
-- Full library downloading capabilities
-- Intelligent offline mode with connectivity detection
-- Smart caching for faster track loading
-- Robust error handling and graceful connection management
+## 🤖 Tech Stack
 
-🤝 **Tech Stack**
+- **Desktop Server**: Go (with optional GUI via Fyne)
+- **Mobile App**: Kotlin (Jetpack Compose)
+- **Networking**: Tailscale (zero-config, encrypted mesh VPN)
+- **Streaming Protocol**: HTTP (securely tunneled via Tailscale)
 
-🖥️ Desktop Server: Go (with optional GUI via Fyne)  
-📱 Mobile App: Kotlin (Jetpack Compose)  
-🛜 Networking Layer: Tailscale (zero-config, encrypted mesh VPN)  
-🔐 Streaming Protocol: HTTP (served securely over Tailscale's encrypted tunnel)
+---
+
+## 📦 Raspberry Pi Support
+
+Includes a CLI version ideal for headless Raspberry Pi setups, with browser-based configuration and low-power streaming support.
+
+---
+
+## 🔐 Note
+
+Music is streamed over HTTP within Tailscale’s encrypted tunnel — ensuring your data remains private without additional network exposure.

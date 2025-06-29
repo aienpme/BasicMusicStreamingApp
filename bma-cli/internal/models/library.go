@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/google/uuid"
 )
 
@@ -34,6 +36,10 @@ type MusicLibrary struct {
 	Albums              []*Album  `json:"albums"`
 	SelectedFolderPath  string    `json:"selectedFolderPath,omitempty"`
 	IsScanning          bool      `json:"isScanning"`
+	LibraryVersion      int64     `json:"libraryVersion"`  // NEW: Unix timestamp for version tracking
+	versionMutex        sync.RWMutex                       // NEW: Separate mutex for version operations
+	watcher             *fsnotify.Watcher
+	isWatching          bool
 	onScanningChanged   func(bool)
 	onLibraryChanged    func()
 }
@@ -64,12 +70,22 @@ func (ml *MusicLibrary) SetLibraryChangedCallback(callback func()) {
 func (ml *MusicLibrary) SelectFolder(folderPath string) {
 	log.Printf("📁 [DEBUG] SelectFolder called with: %s", folderPath)
 	
+	// Stop any existing watcher before changing folders
+	ml.StopWatching()
+	
 	ml.mutex.Lock()
 	ml.SelectedFolderPath = folderPath
 	ml.mutex.Unlock()
 	
 	log.Printf("📁 [LIBRARY] Selected folder: %s", folderPath)
+	
+	// Scan the folder first
 	ml.ScanFolder()
+	
+	// Start watching for new albums after initial scan
+	if err := ml.StartWatching(); err != nil {
+		log.Printf("❌ [LIBRARY] Failed to start watching folder: %v", err)
+	}
 }
 
 // ScanFolder scans the selected folder for MP3 files
@@ -146,6 +162,9 @@ func (ml *MusicLibrary) ScanFolder() {
 	
 	log.Println("🔍 [DEBUG] About to call callbacks")
 	
+	// Update library version since content has changed
+	ml.updateLibraryVersion()
+	
 	// Call callbacks AFTER releasing the mutex to avoid deadlock
 	if ml.onScanningChanged != nil {
 		log.Println("🔍 [DEBUG] Calling onScanningChanged(false)")
@@ -176,6 +195,12 @@ func (ml *MusicLibrary) scanDirectory(dirPath string, songs *[]*Song) error {
 				continue
 			}
 		} else if strings.HasSuffix(strings.ToLower(entry.Name()), ".mp3") {
+			// Skip Mac resource fork files (._filename.mp3)
+			if strings.HasPrefix(entry.Name(), "._") {
+				log.Printf("🍎 [LIBRARY] Skipping Mac resource fork file: %s", entry.Name())
+				continue
+			}
+			
 			// Create song from MP3 file
 			song, err := NewSongFromFile(fullPath)
 			if err != nil {
@@ -209,21 +234,15 @@ func (ml *MusicLibrary) organizeAndSortSongs(songs []*Song) []*Song {
 	sort.Slice(sortedSongs, func(i, j int) bool {
 		song1, song2 := sortedSongs[i], sortedSongs[j]
 		
-		// First sort by album
+		// First sort by album (ONLY use real ID3 album metadata)
 		album1 := song1.Album
 		if album1 == "" {
-			album1 = song1.InferredAlbum()
-		}
-		if album1 == "" {
-			album1 = "Unknown Album"
+			album1 = "ZZ_NoAlbum" // Sort songs without album metadata to the end
 		}
 		
 		album2 := song2.Album
 		if album2 == "" {
-			album2 = song2.InferredAlbum()
-		}
-		if album2 == "" {
-			album2 = "Unknown Album"
+			album2 = "ZZ_NoAlbum" // Sort songs without album metadata to the end
 		}
 		
 		if album1 != album2 {
@@ -243,7 +262,11 @@ func (ml *MusicLibrary) organizeAndSortSongs(songs []*Song) []*Song {
 		}
 	}
 	
-	return sortedSongs
+	// Apply deduplication to remove duplicate songs
+	log.Println("🔍 [LIBRARY] Applying deduplication...")
+	deduplicatedSongs := ml.deduplicate(sortedSongs)
+	
+	return deduplicatedSongs
 }
 
 // compareTracksWithNumberPriority implements lexicographic sorting with numbered track priority (01, 02, 10)
@@ -306,28 +329,79 @@ func (ml *MusicLibrary) extractLeadingNumber(title string) *int {
 	return nil
 }
 
+// deduplicate removes duplicate songs based on metadata (Artist + Title + Album)
+func (ml *MusicLibrary) deduplicate(songs []*Song) []*Song {
+	seen := make(map[string]bool)
+	var uniqueSongs []*Song
+	duplicateCount := 0
+	
+	for _, song := range songs {
+		// Create unique key from metadata (case-insensitive)
+		artist := strings.ToLower(strings.TrimSpace(song.Artist))
+		title := strings.ToLower(strings.TrimSpace(song.Title))
+		album := strings.ToLower(strings.TrimSpace(song.Album))
+		
+		// Handle empty metadata gracefully
+		if artist == "" {
+			artist = "unknown_artist"
+		}
+		if title == "" {
+			title = "unknown_title"
+		}
+		if album == "" {
+			album = "unknown_album"
+		}
+		
+		key := artist + "|" + title + "|" + album
+		
+		if !seen[key] {
+			seen[key] = true
+			uniqueSongs = append(uniqueSongs, song)
+		} else {
+			duplicateCount++
+			log.Printf("🚫 [DEDUP] Skipping duplicate: %s - %s (Album: %s)", song.Artist, song.Title, song.Album)
+		}
+	}
+	
+	if duplicateCount > 0 {
+		log.Printf("🚫 [DEDUP] Removed %d duplicate songs, kept %d unique songs", duplicateCount, len(uniqueSongs))
+	}
+	
+	return uniqueSongs
+}
+
 // organizeIntoAlbums groups songs into albums
 func (ml *MusicLibrary) organizeIntoAlbums(songs []*Song) []*Album {
 	log.Println("🔍 [LIBRARY] Organizing songs into albums...")
 	
-	// Group songs by album name
+	// Group songs by album name (ONLY real ID3 album metadata, ignore folder names)
 	albumMap := make(map[string][]*Song)
 	
 	for _, song := range songs {
 		albumName := song.Album
+		log.Printf("🔍 [DEBUG] Song: %s, Album: '%s', Folder: '%s'", song.Title, albumName, song.InferredAlbum())
+		
 		if albumName == "" {
-			albumName = song.InferredAlbum()
-		}
-		if albumName == "" {
-			albumName = "Unknown Album"
+			// Skip songs without real album tags - they'll remain as standalone songs
+			log.Printf("🔍 [DEBUG] Skipping song without album metadata: %s", song.Title)
+			continue
 		}
 		
+		log.Printf("🔍 [DEBUG] Adding song to album '%s': %s", albumName, song.Title)
 		albumMap[albumName] = append(albumMap[albumName], song)
 	}
 	
-	// Create Album structs
+	// Create Album structs ONLY for groups with 2+ songs
 	var albums []*Album
 	for albumName, albumSongs := range albumMap {
+		if len(albumSongs) < 2 {
+			// Skip single songs - they should remain as standalone songs
+			log.Printf("🔍 [LIBRARY] Skipping single song album: %s (%d song)", albumName, len(albumSongs))
+			continue
+		}
+		
+		log.Printf("🔍 [LIBRARY] ✅ Creating REAL album: %s (%d songs)", albumName, len(albumSongs))
+		
 		// Determine album artist (use first song's artist)
 		var artist string
 		if len(albumSongs) > 0 {
@@ -350,6 +424,8 @@ func (ml *MusicLibrary) organizeIntoAlbums(songs []*Song) []*Album {
 	sort.Slice(albums, func(i, j int) bool {
 		return strings.ToLower(albums[i].Name) < strings.ToLower(albums[j].Name)
 	})
+	
+	log.Printf("🔍 [LIBRARY] Created %d albums from %d song groups", len(albums), len(albumMap))
 	
 	return albums
 }
@@ -443,4 +519,181 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// StartWatching initializes and starts the file system watcher for automatic album detection
+func (ml *MusicLibrary) StartWatching() error {
+	ml.mutex.Lock()
+	defer ml.mutex.Unlock()
+	
+	// Don't start if already watching
+	if ml.isWatching {
+		log.Println("👀 [WATCHER] Already watching folder")
+		return nil
+	}
+	
+	// Don't start if no folder selected
+	if ml.SelectedFolderPath == "" {
+		log.Println("👀 [WATCHER] No folder selected, cannot start watching")
+		return nil
+	}
+	
+	// Create new watcher
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Printf("❌ [WATCHER] Failed to create watcher: %v", err)
+		return err
+	}
+	
+	ml.watcher = watcher
+	ml.isWatching = true
+	
+	// Add the selected folder to watcher
+	err = ml.watcher.Add(ml.SelectedFolderPath)
+	if err != nil {
+		log.Printf("❌ [WATCHER] Failed to watch folder %s: %v", ml.SelectedFolderPath, err)
+		ml.watcher.Close()
+		ml.watcher = nil
+		ml.isWatching = false
+		return err
+	}
+	
+	log.Printf("👀 [WATCHER] ✅ Successfully started watching folder: %s", ml.SelectedFolderPath)
+	log.Println("👀 [WATCHER] 🔍 Now monitoring for new album folders...")
+	
+	// Start the event processing goroutine
+	go ml.watchEvents()
+	
+	return nil
+}
+
+// StopWatching stops the file system watcher and cleans up resources
+func (ml *MusicLibrary) StopWatching() {
+	ml.mutex.Lock()
+	defer ml.mutex.Unlock()
+	
+	if !ml.isWatching || ml.watcher == nil {
+		return
+	}
+	
+	log.Println("👀 [WATCHER] Stopping file system watcher")
+	
+	// Close the watcher
+	ml.watcher.Close()
+	ml.watcher = nil
+	ml.isWatching = false
+	
+	log.Println("👀 [WATCHER] File system watcher stopped")
+}
+
+// watchEvents processes file system events in a separate goroutine
+func (ml *MusicLibrary) watchEvents() {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("🔥 [WATCHER] Panic in event processing: %v", r)
+		}
+	}()
+	
+	for {
+		ml.mutex.RLock()
+		watcher := ml.watcher
+		isWatching := ml.isWatching
+		ml.mutex.RUnlock()
+		
+		if !isWatching || watcher == nil {
+			log.Println("👀 [WATCHER] Stopping event loop - watcher closed")
+			return
+		}
+		
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				log.Println("👀 [WATCHER] Events channel closed")
+				return
+			}
+			ml.handleFileSystemEvent(event)
+			
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				log.Println("👀 [WATCHER] Errors channel closed")
+				return
+			}
+			log.Printf("❌ [WATCHER] File system error: %v", err)
+		}
+	}
+}
+
+// handleFileSystemEvent processes individual file system events
+func (ml *MusicLibrary) handleFileSystemEvent(event fsnotify.Event) {
+	log.Printf("👀 [WATCHER] 📋 Event received: %s %s", event.Op.String(), event.Name)
+	
+	// Only handle directory creation events
+	if event.Op&fsnotify.Create == fsnotify.Create {
+		log.Printf("👀 [WATCHER] 📁 CREATE event detected for: %s", event.Name)
+		
+		// Check if it's a directory
+		if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
+			log.Printf("👀 [WATCHER] ✅ Confirmed it's a directory: %s", event.Name)
+			
+			// Check if the directory contains music files
+			if ml.isDirectoryWithMusic(event.Name) {
+				log.Printf("🎵 [WATCHER] 🎉 NEW ALBUM DETECTED: %s", event.Name)
+				log.Println("🎵 [WATCHER] 🔄 About to trigger automatic library rescan...")
+				
+				// Trigger a full library rescan
+				go func() {
+					log.Println("🔍 [WATCHER] 🚀 Starting automatic library rescan due to new album...")
+					ml.ScanFolder()
+					log.Println("🔍 [WATCHER] ✅ Automatic library rescan completed!")
+				}()
+			} else {
+				log.Printf("📁 [WATCHER] ⚠️  Directory contains no music files: %s", event.Name)
+			}
+		} else if err != nil {
+			log.Printf("👀 [WATCHER] ❌ Error checking if path is directory: %v", err)
+		} else {
+			log.Printf("👀 [WATCHER] 📄 Not a directory (probably a file): %s", event.Name)
+		}
+	} else {
+		log.Printf("👀 [WATCHER] ℹ️  Ignoring non-CREATE event: %s for %s", event.Op.String(), event.Name)
+	}
+}
+
+// isDirectoryWithMusic checks if a directory contains MP3 files
+func (ml *MusicLibrary) isDirectoryWithMusic(dirPath string) bool {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		log.Printf("❌ [WATCHER] Cannot read directory %s: %v", dirPath, err)
+		return false
+	}
+	
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			filename := strings.ToLower(entry.Name())
+			if strings.HasSuffix(filename, ".mp3") {
+				log.Printf("🎵 [WATCHER] Found MP3 file: %s", entry.Name())
+				return true
+			}
+		}
+	}
+	
+	log.Printf("📁 [WATCHER] No MP3 files found in: %s", dirPath)
+	return false
+}
+
+// Library Version Management Methods (NEW for automatic refresh detection)
+
+// GetLibraryVersion returns the current library version timestamp (thread-safe)
+func (ml *MusicLibrary) GetLibraryVersion() int64 {
+	ml.versionMutex.RLock()
+	defer ml.versionMutex.RUnlock()
+	return ml.LibraryVersion
+}
+
+// updateLibraryVersion sets the library version to current timestamp (called internally)
+func (ml *MusicLibrary) updateLibraryVersion() {
+	ml.versionMutex.Lock()
+	defer ml.versionMutex.Unlock()
+	ml.LibraryVersion = time.Now().Unix()
+	log.Printf("📊 [VERSION] Library version updated to: %d", ml.LibraryVersion)
 }

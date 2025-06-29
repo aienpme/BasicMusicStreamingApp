@@ -37,10 +37,13 @@
                 android:id="@+id/connection_settings_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🔗 Connection Settings"
+                android:text="Connection Settings"
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
+                android:drawableStart="@drawable/ic_connection"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="12dp" />
 
             <TextView
@@ -63,20 +66,26 @@
                 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/disconnect_button"
+                style="@style/Widget.BMA.Button.Destructive"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🔌 Disconnect"
-                android:backgroundTint="#FF5722"
-                android:textColor="#FFFFFF"
-                app:rippleColor="#33FFFFFF"
+                android:text="Disconnect"
+                app:icon="@drawable/ic_disconnect"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp"
                 android:layout_marginBottom="8dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/reconnect_button"
-                style="@style/Widget.BMA.Button"
+                style="@style/Widget.BMA.Button.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📱 Scan QR to Connect"
+                android:text="Scan QR to Connect"
+                app:icon="@drawable/ic_search"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp"
                 android:visibility="gone" />
 
         </LinearLayout>
@@ -94,10 +103,13 @@
                 android:id="@+id/backup_settings_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="💾 Backup &amp; Restore"
+                android:text="Backup &amp; Restore"
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
+                android:drawableStart="@drawable/ic_storage"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="12dp" />
 
             <TextView
@@ -111,18 +123,26 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/backup_button"
-                style="@style/Widget.BMA.Button"
+                style="@style/Widget.BMA.Button.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📤 Create Backup"
+                android:text="Create Backup"
+                app:icon="@drawable/ic_backup"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp"
                 android:layout_marginBottom="8dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/restore_button"
-                style="@style/Widget.BMA.Button"
+                style="@style/Widget.BMA.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📥 Restore Backup" />
+                android:text="Restore Backup"
+                app:icon="@drawable/ic_restore"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp" />
 
         </LinearLayout>
 
@@ -139,10 +159,13 @@
                 android:id="@+id/streaming_stats_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="📊 Streaming Stats"
+                android:text="Streaming Stats"
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
+                android:drawableStart="@drawable/ic_stats"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="12dp" />
 
             <TextView
@@ -173,6 +196,17 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/see_streaming_stats_button"
+                style="@style/Widget.BMA.Button.Primary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="See Streaming Stats"
+                app:icon="@drawable/ic_stats"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp" />
+
         </LinearLayout>
 
         <!-- Download Settings Section -->
@@ -187,10 +221,13 @@
                 android:id="@+id/download_settings_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="⬇️ Download Settings"
+                android:text="Download Settings"
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
+                android:drawableStart="@drawable/ic_download_settings"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
                 android:layout_marginBottom="12dp" />
 
             <TextView
@@ -204,20 +241,28 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/download_quality_button"
-                style="@style/Widget.BMA.Button"
+                style="@style/Widget.BMA.Button.Primary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="📱 Manage Downloads"
+                android:text="Manage Downloads"
+                app:icon="@drawable/ic_download_manage"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp"
                 android:enabled="true"
                 android:layout_marginBottom="8dp" />
 
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/clear_cache_button"
-                style="@style/Widget.BMA.Button"
+                style="@style/Widget.BMA.Button.Secondary"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="🗑️ Clear Cache"
+                android:text="Clear Cache"
+                app:icon="@drawable/ic_clear_cache"
+                app:iconGravity="start"
+                app:iconPadding="8dp"
+                app:iconSize="20dp"
                 android:enabled="true" />
 
 

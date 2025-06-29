@@ -12,6 +12,7 @@ import com.bma.android.setup.fragments.LoadingFragment
 import com.bma.android.setup.fragments.QRScannerFragment
 import com.bma.android.setup.fragments.TailscaleCheckFragment
 import com.bma.android.setup.fragments.WelcomeFragment
+import com.bma.android.storage.OfflineModeManager
 
 class SetupActivity : AppCompatActivity() {
     private lateinit var viewModel: SetupViewModel
@@ -19,7 +20,10 @@ class SetupActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Check if setup is already complete
+        // Initialize OfflineModeManager to load saved offline mode state
+        OfflineModeManager.initialize(this)
+
+        // Check if setup is already complete or if offline mode is active
         if (isSetupComplete()) {
             // If so, go straight to the main app
             startActivity(Intent(this, MainActivity::class.java))
@@ -47,6 +51,12 @@ class SetupActivity : AppCompatActivity() {
     }
 
     private fun isSetupComplete(): Boolean {
+        // If offline mode is active, bypass normal setup requirements
+        if (OfflineModeManager.isOfflineMode()) {
+            return true
+        }
+        
+        // Otherwise, check for normal authentication credentials
         val prefs = getSharedPreferences("BMA", Context.MODE_PRIVATE)
         val serverUrl = prefs.getString("server_url", null)
         val authToken = prefs.getString("auth_token", null)

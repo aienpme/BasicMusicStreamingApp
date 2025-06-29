@@ -1,284 +1,139 @@
-# BMA CLI - Basic Music App Command Line Interface
+# BMA CLI - Your Personal Music Streaming Server
 
-A headless music streaming server for Raspberry Pi and other Linux systems. BMA CLI provides a web-based setup interface and serves music files to BMA mobile applications.
+## What is BMA CLI?
 
-## Features
+BMA CLI is a lightweight, headless music streaming server that transforms any computer or Raspberry Pi into your personal music streaming service. It allows you to access your entire music library from anywhere in the world through secure connections, streaming to mobile devices with full metadata support and album artwork.
 
-- **Headless Operation**: No GUI required, perfect for servers and Raspberry Pi
-- **Web-based Setup**: Easy configuration through browser interface
-- **Tailscale Integration**: Secure remote access (optional)
-- **Music Library Management**: Automatic scanning and organization of MP3 files
-- **Mobile App Compatible**: Works with BMA Android/iOS applications
-- **RESTful API**: Provides endpoints for music streaming and metadata
+Think of it as your own private Spotify, but for your personal music collection.
 
-## Installation
+## 🎯 Perfect For
 
-### Prerequisites
+- **Raspberry Pi enthusiasts** who want to repurpose their device as a music server
+- **Music collectors** with large personal libraries stored on home computers
+- **Remote workers** who want access to their music from anywhere
+- **Privacy-conscious users** who prefer self-hosted solutions over cloud services
+- **Families** who want to share a music library across multiple devices
 
-1. **Go Language**: Install Go 1.21 or later
-   ```bash
-   # On Ubuntu/Debian
-   sudo apt update
-   sudo apt install golang-go
-   
-   # On Raspberry Pi OS
-   sudo apt update
-   sudo apt install golang-go
-   
-   # Verify installation
-   go version
-   ```
+## ✨ Key Features
 
-2. **Git**: For cloning the repository
-   ```bash
-   sudo apt install git
-   ```
+### 🎵 **Personal Music Streaming**
+- Stream your entire music collection from anywhere in the world
+- Support for MP3, M4A, FLAC, and WAV audio formats
+- High-quality audio streaming with proper content-type headers
+- Real-time music library updates when you add new files
 
-### Building BMA CLI
+### 🌐 **Secure Remote Access**
+- **Tailscale VPN integration** for secure access from anywhere
+- **Local network support** for home WiFi streaming
+- **No port forwarding required** - works through encrypted tunnels
+- **QR code pairing** for instant mobile device setup
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd BasicStreamingApp/bma-cli
-   ```
+### 🖥️ **Headless Operation**
+- Runs as a background service without requiring a desktop interface
+- **Perfect for Raspberry Pi** and other headless systems
+- **Low resource usage** - optimized for minimal hardware
+- **Command-line interface** for easy server management
 
-2. **Download dependencies**:
-   ```bash
-   go mod tidy
-   ```
+### 📱 **Mobile-First Design**
+- **RESTful API** designed specifically for mobile app integration
+- **Album artwork serving** with automatic extraction from music files
+- **Rich metadata support** including artist, album, track numbers, and duration
+- **Cross-platform compatibility** with iOS and Android apps
 
-3. **Build the executable**:
-   ```bash
-   go build -o bma-cli .
-   ```
+### 🎛️ **Smart Music Organization**
+- **Automatic library scanning** with recursive folder support
+- **Intelligent album grouping** based on metadata and folder structure
+- **Duplicate detection** to keep your library clean
+- **Real-time file monitoring** - automatically detects new music files
+- **Metadata extraction** from ID3 tags with filename fallback
 
-## Setup and Usage
+### ⚙️ **Easy Setup & Management**
+- **Web-based setup wizard** for initial configuration
+- **One-time setup process** with persistent configuration
+- **Automatic Tailscale detection** and authentication
+- **Music folder validation** to ensure proper library setup
+- **Health monitoring** with status endpoints
 
-### First Run (Setup)
+## 🚀 How It Works
 
-1. **Run BMA CLI for the first time**:
-   ```bash
-   ./bma-cli
-   ```
+### Initial Setup
+1. **First Run**: BMA CLI starts in setup mode with a web interface
+2. **Tailscale Configuration**: Automatic detection and setup for remote access
+3. **Music Library Selection**: Choose your music folder with validation
+4. **One-Click Completion**: Setup is saved and server switches to streaming mode
 
-2. **Open the setup interface**:
-   - The application will start a web server at `http://localhost:8080/setup`
-   - Open this URL in your web browser
-   - You can access this from any device on the same network
+### Music Library Management
+- **Recursive Scanning**: Discovers all music files in your selected folder and subfolders
+- **Metadata Extraction**: Reads ID3 tags from audio files for artist, album, and track information
+- **Smart Organization**: Groups songs into albums based on metadata
+- **Artwork Handling**: Extracts and serves embedded album artwork
+- **Live Updates**: Monitors file system changes and updates library automatically
 
-3. **Follow the setup wizard**:
-   - **Step 1**: Configure Tailscale (optional but recommended for remote access)
-   - **Step 2**: Specify your music directory path
-   - **Step 3**: Complete the setup
+### Remote Access
+- **Tailscale Integration**: Creates secure VPN connections for worldwide access
+- **Mobile Pairing**: Generate QR codes for instant device setup
+- **Local & Remote**: Works on home WiFi or from anywhere with internet
 
-### Running as Music Server
+### API Endpoints
+- **Health Checks**: Monitor server status and library statistics
+- **Song Streaming**: Direct audio file streaming with range request support
+- **Library Browsing**: List all songs and albums with full metadata
+- **Artwork Serving**: High-quality album artwork with proper caching
 
-After setup is complete, BMA CLI will automatically restart as a music streaming server:
+## 🏠 Home Media Server Benefits
 
-```bash
-./bma-cli
-```
+- **Privacy Control**: Your music never leaves your home network (unless you allow remote access)
+- **No Monthly Fees**: One-time setup with no ongoing subscription costs
+- **Unlimited Storage**: Only limited by your device's storage capacity
+- **Custom Organization**: Organize your music exactly how you want it
+- **High Quality**: Stream at the original quality of your music files
+- **Offline Capable**: Works without internet for local network access
 
-The server will display:
-```
-==============================================================
-🎵 BMA CLI Music Server
-==============================================================
-Music Library: /path/to/your/music
-Server running at: http://localhost:8080
-Tailscale access: http://your-tailscale-ip:8080
-Ready for connections from BMA mobile apps
-==============================================================
-```
+## 💡 Use Cases
 
-## API Endpoints
+### **Home Music Server**
+Set up on a Raspberry Pi connected to your home network. Family members can stream music throughout the house using their phones or tablets.
 
-BMA CLI provides the following REST endpoints:
+### **Remote Music Access**
+Access your entire home music collection while traveling, at work, or anywhere with internet connection through secure Tailscale VPN.
 
-### Public Endpoints
+### **Legacy Music Collection**
+Breathe new life into old CD collections or music purchases by making them accessible on modern mobile devices.
 
-- `GET /health` - Server health check
-- `GET /info` - Server and library information
-- `GET /songs` - List all songs
-- `GET /albums` - List all albums
-- `GET /stream/{songId}` - Stream audio file
-- `GET /artwork/{songId}` - Get album artwork
+### **Multi-Device Streaming**
+Stream to multiple devices simultaneously from your central music server.
 
-### Example Responses
+## 🔒 Security & Privacy
 
-**GET /info**:
-```json
-{
-  "server": "BMA CLI Music Server",
-  "version": "1.0",
-  "httpPort": 8080,
-  "protocol": "http",
-  "library": {
-    "albumCount": 25,
-    "songCount": 342,
-    "hasLibrary": true,
-    "musicPath": "/home/user/music"
-  }
-}
-```
+- **VPN-Based Security**: Uses Tailscale's enterprise-grade encryption for remote access
+- **No Cloud Dependencies**: Your music stays on your device - no uploads to third-party services  
+- **Local Network Priority**: Prioritizes local network access when available
+- **Token-Based Authentication**: Secure device pairing with generated access tokens
 
-**GET /songs**:
-```json
-[
-  {
-    "id": "uuid-string",
-    "filename": "song.mp3",
-    "title": "Song Title",
-    "artist": "Artist Name",
-    "album": "Album Name",
-    "trackNumber": 1,
-    "hasArtwork": true,
-    "sortOrder": 0
-  }
-]
-```
+## 📊 Technical Specifications
 
-## Configuration
+- **Supported Formats**: MP3, M4A, FLAC, WAV
+- **Metadata Support**: ID3 tags, album artwork, track numbers
+- **Platform Compatibility**: Linux, macOS, Raspberry Pi OS
+- **Network Requirements**: Local WiFi or internet connection for Tailscale
+- **Resource Usage**: Minimal CPU and RAM usage, suitable for Raspberry Pi 3+
+- **API Protocol**: RESTful HTTP API with JSON responses
 
-Configuration is stored in `~/.bma-cli/config.json`:
+## 🎮 Getting Started
 
-```json
-{
-  "setupComplete": true,
-  "musicFolder": "/path/to/music",
-  "tailscaleIP": "100.x.x.x"
-}
-```
+BMA CLI is designed to be simple to set up, even for non-technical users:
 
-## Supported Audio Formats
+1. **Download and build** the application
+2. **Run the setup command** to start the configuration wizard
+3. **Open the web setup page** in your browser
+4. **Configure Tailscale** for remote access (optional)
+5. **Select your music folder** and validate the library
+6. **Complete setup** - your music server is ready!
 
-- **MP3**: Primary format with full metadata support
-- **M4A**: Basic support
-- **FLAC**: Basic support  
-- **WAV**: Basic support
+The built-in setup wizard guides you through each step with clear instructions and validation.
 
-## Mobile App Integration
+## 🌟 Why Choose BMA CLI?
 
-BMA CLI is designed to work with BMA mobile applications:
+Unlike cloud-based music services, BMA CLI gives you complete control over your music collection while providing modern streaming capabilities. It's the perfect solution for music enthusiasts who want the convenience of streaming with the privacy and control of self-hosting.
 
-1. **Discovery**: Mobile apps can discover the server via network scanning
-2. **Pairing**: Future versions will support QR code pairing
-3. **Streaming**: Apps connect to the REST API for music streaming
-4. **Remote Access**: Use Tailscale for secure access outside your network
-
-## Systemd Service (Optional)
-
-To run BMA CLI as a system service:
-
-1. **Create service file** `/etc/systemd/system/bma-cli.service`:
-   ```ini
-   [Unit]
-   Description=BMA CLI Music Server
-   After=network.target
-   
-   [Service]
-   Type=simple
-   User=your-username
-   WorkingDirectory=/path/to/bma-cli
-   ExecStart=/path/to/bma-cli/bma-cli
-   Restart=always
-   RestartSec=5
-   
-   [Install]
-   WantedBy=multi-user.target
-   ```
-
-2. **Enable and start the service**:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable bma-cli
-   sudo systemctl start bma-cli
-   ```
-
-3. **Check status**:
-   ```bash
-   sudo systemctl status bma-cli
-   ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission Denied**: Ensure the executable has correct permissions
-   ```bash
-   chmod +x bma-cli
-   ```
-
-2. **Port Already in Use**: Another service is using port 8080
-   ```bash
-   sudo lsof -i :8080
-   ```
-
-3. **Music Directory Access**: Ensure BMA CLI can read your music directory
-   ```bash
-   ls -la /path/to/music
-   ```
-
-4. **No Music Found**: Check supported formats and directory structure
-
-### Logs
-
-BMA CLI outputs detailed logs to stdout. For persistent logging:
-
-```bash
-./bma-cli 2>&1 | tee bma-cli.log
-```
-
-## Development
-
-### Project Structure
-
-```
-bma-cli/
-├── main.go                 # Entry point
-├── internal/
-│   ├── models/            # Data models
-│   │   ├── config.go      # Configuration management
-│   │   ├── library.go     # Music library management
-│   │   └── song.go        # Song metadata handling
-│   └── server/            # HTTP servers
-│       ├── setup.go       # Setup web interface
-│       └── music.go       # Music streaming server
-├── web/                   # Web assets (future)
-│   ├── templates/
-│   └── static/
-├── go.mod                 # Go module definition
-└── README.md
-```
-
-### Building for Different Architectures
-
-**For Raspberry Pi (ARM64)**:
-```bash
-GOOS=linux GOARCH=arm64 go build -o bma-cli-arm64 .
-```
-
-**For Raspberry Pi (ARM32)**:
-```bash
-GOOS=linux GOARCH=arm go build -o bma-cli-arm .
-```
-
-**For Linux (AMD64)**:
-```bash
-GOOS=linux GOARCH=amd64 go build -o bma-cli-linux .
-```
-
-## License
-
-[Include your license information here]
-
-## Contributing
-
-[Include contribution guidelines here]
-
-## Support
-
-For support and issues, please check:
-1. This README for common solutions
-2. The project's issue tracker
-3. Community forums
+Whether you're a Raspberry Pi hobbyist, a privacy-conscious music lover, or someone who wants to modernize their music collection, BMA CLI provides an elegant solution that's both powerful and easy to use.

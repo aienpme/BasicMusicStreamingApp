@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme for API level 27+ that supports windowLightNavigationBar -->
+    <style name="Theme.BMA" parent="Theme.MaterialComponents.NoActionBar">
+        <!-- Colors -->
+        <item name="android:windowBackground">@color/background</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorError">@color/error</item>
+        
+        <!-- Text Colors -->
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        
+        <!-- System UI -->
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        
+        <!-- Component Styles -->
+        <item name="materialCardViewStyle">@style/Widget.BMA.CardView</item>
+        <item name="materialButtonStyle">@style/Widget.BMA.Button</item>
+    </style>
+</resources> 

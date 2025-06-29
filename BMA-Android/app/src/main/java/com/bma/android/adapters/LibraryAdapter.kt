@@ -23,6 +23,10 @@ import com.bumptech.glide.load.model.GlideUrl
 import com.bumptech.glide.load.model.LazyHeaders
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.bma.android.utils.ArtworkUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class LibraryAdapter(
     private val onSongClick: (Song) -> Unit,
@@ -211,26 +215,50 @@ class LibraryAdapter(
         private fun loadAlbumArtwork(album: Album) {
             if (album.songs.isNotEmpty()) {
                 val firstSong = album.songs.first()
-                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${firstSong.id}"
                 
-                val authHeader = ApiClient.getAuthHeader()
-                
-                if (authHeader != null) {
-                    val glideUrl = GlideUrl(
-                        artworkUrl, 
-                        LazyHeaders.Builder()
-                            .addHeader("Authorization", authHeader)
-                            .build()
-                    )
-                    
-                    Glide.with(binding.root.context)
-                        .load(glideUrl)
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.ic_folder)
-                        .error(R.drawable.ic_folder)
-                        .into(binding.albumArtwork)
-                } else {
-                    binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                // Use ArtworkUtils for offline-aware artwork loading
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        val artworkPath = ArtworkUtils.getArtworkPath(binding.root.context, firstSong)
+                        
+                        if (artworkPath.isNotEmpty()) {
+                            if (artworkPath.startsWith("file://")) {
+                                // Local file - load directly
+                                Glide.with(binding.root.context)
+                                    .load(artworkPath)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .placeholder(R.drawable.ic_folder)
+                                    .error(R.drawable.ic_folder)
+                                    .into(binding.albumArtwork)
+                            } else {
+                                // Server URL - load with auth header
+                                val authHeader = ApiClient.getAuthHeader()
+                                if (authHeader != null) {
+                                    val glideUrl = GlideUrl(
+                                        artworkPath,
+                                        LazyHeaders.Builder()
+                                            .addHeader("Authorization", authHeader)
+                                            .build()
+                                    )
+                                    
+                                    Glide.with(binding.root.context)
+                                        .load(glideUrl)
+                                        .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                        .placeholder(R.drawable.ic_folder)
+                                        .error(R.drawable.ic_folder)
+                                        .into(binding.albumArtwork)
+                                } else {
+                                    binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                                }
+                            }
+                        } else {
+                            // Empty path - use placeholder
+                            binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                        }
+                    } catch (e: Exception) {
+                        // Error loading artwork - use placeholder
+                        binding.albumArtwork.setImageResource(R.drawable.ic_folder)
+                    }
                 }
             } else {
                 binding.albumArtwork.setImageResource(R.drawable.ic_folder)
@@ -285,35 +313,53 @@ class LibraryAdapter(
         }
         
         private fun loadSingleArtwork(song: Song) {
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-            val authHeader = ApiClient.getAuthHeader()
-            
-            if (authHeader != null) {
-                val glideUrl = GlideUrl(
-                    artworkUrl, 
-                    LazyHeaders.Builder()
-                        .addHeader("Authorization", authHeader)
-                        .build()
-                )
-                
-                Glide.with(binding.root.context)
-                    .load(glideUrl)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_queue_music)
-                    .error(R.drawable.ic_queue_music)
-                    .into(binding.playlistArtwork)
-            } else {
-                binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+            // Use ArtworkUtils for offline-aware artwork loading
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    val artworkPath = ArtworkUtils.getArtworkPath(binding.root.context, song)
+                    
+                    if (artworkPath.isNotEmpty()) {
+                        if (artworkPath.startsWith("file://")) {
+                            // Local file - load directly
+                            Glide.with(binding.root.context)
+                                .load(artworkPath)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_queue_music)
+                                .error(R.drawable.ic_queue_music)
+                                .into(binding.playlistArtwork)
+                        } else {
+                            // Server URL - load with auth header
+                            val authHeader = ApiClient.getAuthHeader()
+                            if (authHeader != null) {
+                                val glideUrl = GlideUrl(
+                                    artworkPath,
+                                    LazyHeaders.Builder()
+                                        .addHeader("Authorization", authHeader)
+                                        .build()
+                                )
+                                
+                                Glide.with(binding.root.context)
+                                    .load(glideUrl)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .placeholder(R.drawable.ic_queue_music)
+                                    .error(R.drawable.ic_queue_music)
+                                    .into(binding.playlistArtwork)
+                            } else {
+                                binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+                            }
+                        }
+                    } else {
+                        // Empty path - use placeholder
+                        binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+                    }
+                } catch (e: Exception) {
+                    // Error loading artwork - use placeholder
+                    binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
+                }
             }
         }
         
         private fun createCompositeArtwork(songs: List<Song>) {
-            val authHeader = ApiClient.getAuthHeader()
-            if (authHeader == null) {
-                binding.playlistArtwork.setImageResource(R.drawable.ic_queue_music)
-                return
-            }
-            
             // Get unique songs for the composite (avoid duplicates)
             val uniqueSongs = songs.distinctBy { it.id }.take(4)
             
@@ -333,33 +379,77 @@ class LibraryAdapter(
                 }
             }
             
-            // Load artworks for each position
+            // Load artworks for each position using offline-aware artwork loading
             uniqueSongs.forEachIndexed { index, song ->
-                val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-                val glideUrl = GlideUrl(
-                    artworkUrl, 
-                    LazyHeaders.Builder()
-                        .addHeader("Authorization", authHeader)
-                        .build()
-                )
-                
-                Glide.with(binding.root.context)
-                    .asBitmap()
-                    .load(glideUrl)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .override(targetSize, targetSize)
-                    .into(object : CustomTarget<Bitmap>() {
-                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
-                            loadedBitmaps[index] = resource
-                            loadCount++
-                            checkAndCreateComposite()
-                        }
+                CoroutineScope(Dispatchers.Main).launch {
+                    try {
+                        val artworkPath = ArtworkUtils.getArtworkPath(binding.root.context, song)
                         
-                        override fun onLoadCleared(placeholder: Drawable?) {
+                        if (artworkPath.isNotEmpty()) {
+                            if (artworkPath.startsWith("file://")) {
+                                // Local file - load directly
+                                Glide.with(binding.root.context)
+                                    .asBitmap()
+                                    .load(artworkPath)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .override(targetSize, targetSize)
+                                    .into(object : CustomTarget<Bitmap>() {
+                                        override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                            loadedBitmaps[index] = resource
+                                            loadCount++
+                                            checkAndCreateComposite()
+                                        }
+                                        
+                                        override fun onLoadCleared(placeholder: Drawable?) {
+                                            loadCount++
+                                            checkAndCreateComposite()
+                                        }
+                                    })
+                            } else {
+                                // Server URL - load with auth header
+                                val authHeader = ApiClient.getAuthHeader()
+                                if (authHeader != null) {
+                                    val glideUrl = GlideUrl(
+                                        artworkPath,
+                                        LazyHeaders.Builder()
+                                            .addHeader("Authorization", authHeader)
+                                            .build()
+                                    )
+                                    
+                                    Glide.with(binding.root.context)
+                                        .asBitmap()
+                                        .load(glideUrl)
+                                        .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                        .override(targetSize, targetSize)
+                                        .into(object : CustomTarget<Bitmap>() {
+                                            override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap>?) {
+                                                loadedBitmaps[index] = resource
+                                                loadCount++
+                                                checkAndCreateComposite()
+                                            }
+                                            
+                                            override fun onLoadCleared(placeholder: Drawable?) {
+                                                loadCount++
+                                                checkAndCreateComposite()
+                                            }
+                                        })
+                                } else {
+                                    // No auth header - skip this artwork
+                                    loadCount++
+                                    checkAndCreateComposite()
+                                }
+                            }
+                        } else {
+                            // Empty path - skip this artwork
                             loadCount++
                             checkAndCreateComposite()
                         }
-                    })
+                    } catch (e: Exception) {
+                        // Error loading artwork - skip this artwork
+                        loadCount++
+                        checkAndCreateComposite()
+                    }
+                }
             }
         }
         
@@ -429,25 +519,49 @@ class LibraryAdapter(
         }
         
         private fun loadSongArtwork(song: Song) {
-            val artworkUrl = "${ApiClient.getServerUrl()}/artwork/${song.id}"
-            val authHeader = ApiClient.getAuthHeader()
-            
-            if (authHeader != null) {
-                val glideUrl = GlideUrl(
-                    artworkUrl, 
-                    LazyHeaders.Builder()
-                        .addHeader("Authorization", authHeader)
-                        .build()
-                )
-                
-                Glide.with(binding.root.context)
-                    .load(glideUrl)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_music_note)
-                    .error(R.drawable.ic_music_note)
-                    .into(binding.albumArtwork)
-            } else {
-                binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
+            // Use ArtworkUtils for offline-aware artwork loading
+            CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    val artworkPath = ArtworkUtils.getArtworkPath(binding.root.context, song)
+                    
+                    if (artworkPath.isNotEmpty()) {
+                        if (artworkPath.startsWith("file://")) {
+                            // Local file - load directly
+                            Glide.with(binding.root.context)
+                                .load(artworkPath)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .placeholder(R.drawable.ic_music_note)
+                                .error(R.drawable.ic_music_note)
+                                .into(binding.albumArtwork)
+                        } else {
+                            // Server URL - load with auth header
+                            val authHeader = ApiClient.getAuthHeader()
+                            if (authHeader != null) {
+                                val glideUrl = GlideUrl(
+                                    artworkPath,
+                                    LazyHeaders.Builder()
+                                        .addHeader("Authorization", authHeader)
+                                        .build()
+                                )
+                                
+                                Glide.with(binding.root.context)
+                                    .load(glideUrl)
+                                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                    .placeholder(R.drawable.ic_music_note)
+                                    .error(R.drawable.ic_music_note)
+                                    .into(binding.albumArtwork)
+                            } else {
+                                binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
+                            }
+                        }
+                    } else {
+                        // Empty path - use placeholder
+                        binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
+                    }
+                } catch (e: Exception) {
+                    // Error loading artwork - use placeholder
+                    binding.albumArtwork.setImageResource(R.drawable.ic_music_note)
+                }
             }
         }
     }

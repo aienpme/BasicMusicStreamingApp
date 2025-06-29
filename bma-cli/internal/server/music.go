@@ -162,10 +162,12 @@ func (ms *MusicServer) handleInfo(w http.ResponseWriter, r *http.Request) {
 	
 	// Get music library statistics
 	var albumCount, songCount int
+	var libraryVersion int64
 	if ms.musicLibrary != nil {
 		albumCount = ms.musicLibrary.GetAlbumCount()
 		songCount = ms.musicLibrary.GetSongCount()
-		log.Printf("📊 Music library stats: %d albums, %d songs", albumCount, songCount)
+		libraryVersion = ms.musicLibrary.GetLibraryVersion()
+		log.Printf("📊 Music library stats: %d albums, %d songs, version: %d", albumCount, songCount, libraryVersion)
 	}
 	
 	response := map[string]interface{}{
@@ -175,10 +177,11 @@ func (ms *MusicServer) handleInfo(w http.ResponseWriter, r *http.Request) {
 		"protocol":    "http",
 		// Music library statistics
 		"library": map[string]interface{}{
-			"albumCount": albumCount,
-			"songCount":  songCount,
-			"hasLibrary": ms.musicLibrary != nil,
-			"musicPath":  ms.config.MusicFolder,
+			"albumCount":     albumCount,
+			"songCount":      songCount,
+			"hasLibrary":     ms.musicLibrary != nil,
+			"musicPath":      ms.config.MusicFolder,
+			"libraryVersion": libraryVersion,
 		},
 	}
 	

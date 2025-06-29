@@ -30,6 +30,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDownloadSelectionBinding
     private lateinit var playlistManager: PlaylistManager
     private lateinit var downloadManager: DownloadManager
+    private var isAnimating = false
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,7 +89,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 binding.downloadAllButton.isEnabled = false
-                binding.downloadAllButton.text = "⬇️ Starting Downloads..."
+                binding.downloadAllButton.text = "Starting Downloads..."
                 
                 // Hide Download Selected button and make Download All take full width during download
                 setDownloadInProgress(true, isDownloadAll = true)
@@ -111,7 +112,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
                 var failCount = 0
                 
                 allSongs.forEachIndexed { index, song ->
-                    binding.downloadAllButton.text = "⬇️ Downloading ${index + 1}/${allSongs.size}"
+                    binding.downloadAllButton.text = "Downloading ${index + 1}/${allSongs.size}"
                     
                     if (downloadManager.isDownloaded(song.id)) {
                         successCount++
@@ -134,7 +135,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
                 android.util.Log.e("DownloadSelectionActivity", "Error starting library download: ${e.message}", e)
             } finally {
                 binding.downloadAllButton.isEnabled = true
-                binding.downloadAllButton.text = "⬇️ Download Entire Library"
+                binding.downloadAllButton.text = "Download All Library"
                 
                 // Restore button layout after download
                 setDownloadInProgress(false)
@@ -156,7 +157,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
                 }
                 
                 binding.downloadSelectedButton.isEnabled = false
-                binding.downloadSelectedButton.text = "⬇️ Starting Downloads..."
+                binding.downloadSelectedButton.text = "Starting Downloads..."
                 
                 // Hide Download All button and make Download Selected take full width during download
                 setDownloadInProgress(true, isDownloadAll = false)
@@ -174,7 +175,7 @@ class DownloadSelectionActivity : AppCompatActivity() {
                 var failCount = 0
                 
                 selectedSongs.forEachIndexed { index, song ->
-                    binding.downloadSelectedButton.text = "⬇️ Downloading ${index + 1}/${selectedSongs.size}"
+                    binding.downloadSelectedButton.text = "Downloading ${index + 1}/${selectedSongs.size}"
                     
                     if (downloadManager.isDownloaded(song.id)) {
                         successCount++
@@ -326,48 +327,139 @@ class DownloadSelectionActivity : AppCompatActivity() {
      * Called by fragments to update the selected count
      */
     fun updateSelectedCount(count: Int, allAvailableSelected: Boolean = false) {
-        binding.downloadSelectedButton.text = if (count > 0) {
-            "⬇️ Download Selected ($count)"
-        } else {
-            "SELECT TO DOWNLOAD"
-        }
-        
-        binding.downloadSelectedButton.isEnabled = count > 0
-        
         // Check if entire library across all tabs is downloaded (asynchronously)
         lifecycleScope.launch {
             val entireLibraryDownloaded = checkIfEntireLibraryDownloaded()
+            
+            // Determine if button will be hidden to avoid text flicker
+            val willHideSelectedButton = (entireLibraryDownloaded) || (allAvailableSelected && count > 0)
+            
+            if (!willHideSelectedButton && !isAnimating) {
+                // Safe to update text - button will remain visible
+                binding.downloadSelectedButton.text = if (count > 0) {
+                    "Download Selected ($count)"
+                } else {
+                    "Select to Download"
+                }
+            }
+            
+            binding.downloadSelectedButton.isEnabled = count > 0
             updateButtonVisibility(count, allAvailableSelected, entireLibraryDownloaded)
         }
     }
     
     /**
-     * Update button visibility based on selection and download state
+     * Update button visibility based on selection and download state with smooth animations
      */
     private fun updateButtonVisibility(count: Int, allAvailableSelected: Boolean, entireLibraryDownloaded: Boolean) {
         // Handle button visibility based on library download state
         if (entireLibraryDownloaded) {
-            // Entire library is downloaded - hide both buttons completely
-            binding.downloadAllButton.visibility = View.GONE
-            binding.downloadSelectedButton.visibility = View.GONE
-        } else if (allAvailableSelected && count > 0) {
-            // All available items are selected - hide Download Selected button
-            binding.downloadSelectedButton.visibility = View.GONE
-            binding.downloadAllButton.visibility = View.VISIBLE
-            // Make Download All Library button take full width
-            val params = binding.downloadAllButton.layoutParams as LinearLayout.LayoutParams
-            params.weight = 1.0f
-            params.marginEnd = 0
-            binding.downloadAllButton.layoutParams = params
+            // Entire library is downloaded - hide entire button container
+            animateContainerVisibility(binding.buttonContainer, false)
         } else {
-            // Not all selected - show both buttons
-            binding.downloadAllButton.visibility = View.VISIBLE
-            binding.downloadSelectedButton.visibility = View.VISIBLE
-            // Reset Download All Library button to half width
-            val params = binding.downloadAllButton.layoutParams as LinearLayout.LayoutParams
-            params.weight = 1.0f
-            params.marginEnd = dpToPx(8)
-            binding.downloadAllButton.layoutParams = params
+            // Library not fully downloaded - show container and manage individual buttons
+            animateContainerVisibility(binding.buttonContainer, true)
+            
+            if (allAvailableSelected && count > 0) {
+                // All available items are selected - hide Download Selected button
+                animateButtonVisibility(binding.downloadSelectedButton, false, count, allAvailableSelected)
+                animateButtonVisibility(binding.downloadAllButton, true, count, allAvailableSelected)
+            } else {
+                // Not all selected - show both buttons
+                animateButtonVisibility(binding.downloadAllButton, true, count, allAvailableSelected)
+                animateButtonVisibility(binding.downloadSelectedButton, true, count, allAvailableSelected)
+            }
+        }
+    }
+    
+    /**
+     * Smoothly animate button container visibility
+     */
+    private fun animateContainerVisibility(container: LinearLayout, show: Boolean) {
+        if (show && container.visibility == View.VISIBLE && container.alpha == 1f) {
+            // Already visible, no animation needed
+            return
+        }
+        if (!show && container.visibility == View.GONE) {
+            // Already hidden, no animation needed
+            return
+        }
+        
+        if (show) {
+            // Show container with fade in
+            container.visibility = View.VISIBLE
+            container.alpha = 0f
+            container.animate()
+                .alpha(1f)
+                .setDuration(200)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
+        } else {
+            // Hide container with immediate fade out (no flash)
+            container.animate()
+                .alpha(0f)
+                .setDuration(100)
+                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                .withEndAction {
+                    container.visibility = View.GONE
+                }
+                .start()
+        }
+    }
+    
+    /**
+     * Smoothly animate button visibility changes with ultra-fast transitions
+     */
+    private fun animateButtonVisibility(button: com.google.android.material.button.MaterialButton, show: Boolean, count: Int, allAvailableSelected: Boolean) {
+        if (show && button.visibility == View.VISIBLE && button.alpha == 1f) {
+            // Already visible, just update text if it's the selected button
+            if (button == binding.downloadSelectedButton) {
+                button.text = if (count > 0) "Download Selected ($count)" else "Select to Download"
+            }
+            return
+        }
+        if (!show && button.visibility == View.GONE) {
+            // Already hidden, no animation needed
+            return
+        }
+        
+        if (show) {
+            // Show button with ultra-fast fade in
+            isAnimating = true
+            button.visibility = View.VISIBLE
+            button.alpha = 0f
+            
+            // Update text immediately when showing
+            if (button == binding.downloadSelectedButton) {
+                button.text = if (count > 0) "Download Selected ($count)" else "Select to Download"
+            }
+            
+            button.animate()
+                .alpha(1f)
+                .setDuration(30)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .withEndAction {
+                    isAnimating = false
+                }
+                .start()
+        } else {
+            // Hide button with ultra-fast fade out
+            isAnimating = true
+            
+            // Reset text to default before hiding to prevent flicker on next show
+            if (button == binding.downloadSelectedButton) {
+                button.text = "Select to Download"
+            }
+            
+            button.animate()
+                .alpha(0f)
+                .setDuration(30)
+                .setInterpolator(android.view.animation.AccelerateInterpolator())
+                .withEndAction {
+                    button.visibility = View.GONE
+                    isAnimating = false
+                }
+                .start()
         }
     }
     
@@ -379,42 +471,24 @@ class DownloadSelectionActivity : AppCompatActivity() {
     }
     
     /**
-     * Manage button layout during download operations
+     * Manage button layout during download operations with smooth animations
      */
     private fun setDownloadInProgress(inProgress: Boolean, isDownloadAll: Boolean = true) {
         if (inProgress) {
-            // During download - hide the inactive button and expand the active one
+            // During download - hide the inactive button
             if (isDownloadAll) {
                 // Download All Library is active - hide Download Selected
-                binding.downloadSelectedButton.visibility = View.GONE
-                val params = binding.downloadAllButton.layoutParams as LinearLayout.LayoutParams
-                params.weight = 1.0f
-                params.marginEnd = 0
-                binding.downloadAllButton.layoutParams = params
+                animateButtonVisibility(binding.downloadSelectedButton, false, 0, false)
+                animateButtonVisibility(binding.downloadAllButton, true, 0, false)
             } else {
-                // Download Selected is active - hide Download All Library
-                binding.downloadAllButton.visibility = View.GONE
-                val params = binding.downloadSelectedButton.layoutParams as LinearLayout.LayoutParams
-                params.weight = 1.0f
-                params.marginStart = 0
-                binding.downloadSelectedButton.layoutParams = params
+                // Download Selected is active - hide Download All Library  
+                animateButtonVisibility(binding.downloadAllButton, false, 0, false)
+                animateButtonVisibility(binding.downloadSelectedButton, true, 0, false)
             }
         } else {
             // Download finished - restore both buttons to normal state
-            binding.downloadAllButton.visibility = View.VISIBLE
-            binding.downloadSelectedButton.visibility = View.VISIBLE
-            
-            // Reset Download All Library button
-            val allParams = binding.downloadAllButton.layoutParams as LinearLayout.LayoutParams
-            allParams.weight = 1.0f
-            allParams.marginEnd = dpToPx(8)
-            binding.downloadAllButton.layoutParams = allParams
-            
-            // Reset Download Selected button
-            val selectedParams = binding.downloadSelectedButton.layoutParams as LinearLayout.LayoutParams
-            selectedParams.weight = 1.0f
-            selectedParams.marginStart = dpToPx(8)
-            binding.downloadSelectedButton.layoutParams = selectedParams
+            animateButtonVisibility(binding.downloadAllButton, true, 0, false)
+            animateButtonVisibility(binding.downloadSelectedButton, true, 0, false)
             
             // After restoring, let the normal selection logic take over
             // This will be handled by the next updateSelectedCount call from fragments

@@ -13,7 +13,7 @@
         android:layout_height="48dp"
         android:layout_margin="16dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_revert"
+        android:src="@drawable/ic_chevron_down"
         android:tint="@color/primary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -130,9 +130,9 @@
             android:id="@+id/shuffleButton"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="8dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_shuffle_off"
+            android:src="@drawable/ic_shuffle_spotify"
             android:scaleType="centerInside"
             android:contentDescription="Shuffle" />
 
@@ -143,7 +143,7 @@
             android:layout_height="60dp"
             android:layout_marginEnd="16dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_media_previous"
+            android:src="@drawable/ic_skip_previous"
             android:tint="@color/primary"
             android:contentDescription="Previous track" />
 
@@ -162,9 +162,9 @@
             android:layout_width="60dp"
             android:layout_height="60dp"
             android:layout_marginStart="16dp"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="8dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@android:drawable/ic_media_next"
+            android:src="@drawable/ic_skip_next"
             android:tint="@color/primary"
             android:contentDescription="Next track" />
 
@@ -173,25 +173,24 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_repeat_off"
+            android:src="@drawable/ic_repeat_spotify"
             android:scaleType="centerInside"
             android:contentDescription="Repeat" />
 
     </LinearLayout>
 
-    <!-- Queue Button (Positioned between Next and Repeat) -->
+    <!-- Queue Button (Aligned with Repeat Button on Right Side) -->
     <ImageButton
         android:id="@+id/queueButton"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginTop="12dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="13dp"
+        android:layout_marginEnd="8dp"
         android:background="?android:attr/selectableItemBackgroundBorderless"
-        android:src="@drawable/ic_queue"
+        android:src="@drawable/ic_queue_spotify"
         android:scaleType="centerInside"
         android:contentDescription="Queue"
         app:layout_constraintTop_toBottomOf="@+id/playerControlsLayout"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.75" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout> 

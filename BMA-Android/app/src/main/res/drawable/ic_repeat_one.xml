@@ -4,18 +4,19 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="?attr/colorPrimary">
-    <!-- Repeat arrows -->
+    
+    <!-- Modern Spotify-style repeat ONE - clean circular arrow with "1" -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M7,7h8v2l3,-3 -3,-3v2H5v4h2V7z"/>
+        android:pathData="M7,7H17V10L21,6L17,2V5H5V11H7V7Z"/>
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M17,17H9v-2l-3,3 3,3v-2h10v-4h-2v2z"/>
+        android:pathData="M17,17H7V14L3,18L7,22V19H19V13H17V17Z"/>
     <!-- Clean "1" in center -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M11.5,10.5h1v3h-1v-3z"/>
+        android:pathData="M11.5,10.5H13V13.5H11.5V10.5Z"/>
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M11,10.5h1.5v0.5H11v-0.5z"/>
+        android:pathData="M11,10.5H12.5V11H11V10.5Z"/>
 </vector>

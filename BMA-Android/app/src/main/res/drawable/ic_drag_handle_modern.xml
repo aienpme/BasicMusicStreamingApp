@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@android:color/white">
+    
+    <!-- Modern drag handle - 6 dots in 2x3 grid pattern -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8,6.5C8,7.33 8.67,8 9.5,8S11,7.33 11,6.5S10.33,5 9.5,5S8,5.67 8,6.5ZM13,6.5C13,7.33 13.67,8 14.5,8S16,7.33 16,6.5S15.33,5 14.5,5S13,5.67 13,6.5ZM8,12C8,12.83 8.67,13.5 9.5,13.5S11,12.83 11,12S10.33,10.5 9.5,10.5S8,11.17 8,12ZM13,12C13,12.83 13.67,13.5 14.5,13.5S16,12.83 16,12S15.33,10.5 14.5,10.5S13,11.17 13,12ZM8,17.5C8,18.33 8.67,19 9.5,19S11,18.33 11,17.5S10.33,16 9.5,16S8,16.67 8,17.5ZM13,17.5C13,18.33 13.67,19 14.5,19S16,18.33 16,17.5S15.33,16 14.5,16S13,16.67 13,17.5Z"/>
+</vector> 

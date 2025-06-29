@@ -1,3 +1,0 @@
-com.bma.android.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme

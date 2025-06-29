@@ -15,6 +15,7 @@ import com.bma.android.storage.PlaybackStateManager
 import com.bma.android.storage.PlaylistManager
 import com.bma.android.storage.CacheManager
 import com.bma.android.storage.OfflineModeManager
+import com.bma.android.storage.IndividualStatsManager
 import com.bma.android.service.components.*
 import com.google.android.exoplayer2.PlaybackException
 import kotlinx.coroutines.CoroutineScope
@@ -49,6 +50,10 @@ class MusicService : Service() {
     
     // Streaming stats tracking
     private lateinit var playbackStatsTracker: PlaybackStatsTracker
+    
+    // Individual song stats tracking (separate system)
+    private lateinit var individualStatsTracker: IndividualStatsTracker
+    private lateinit var individualStatsManager: IndividualStatsManager
     
     // Audio focus management
     private lateinit var audioFocusManager: AudioFocusManager
@@ -123,6 +128,10 @@ class MusicService : Service() {
         playlistManager = PlaylistManager.getInstance(this)
         cacheManager = CacheManager.getInstance(this)
         playbackStatsTracker = PlaybackStatsTracker(playlistManager, coroutineScope)
+        
+        // Initialize individual stats tracking (separate system)
+        individualStatsManager = IndividualStatsManager.getInstance(this)
+        individualStatsTracker = IndividualStatsTracker(individualStatsManager, coroutineScope)
         mediaSessionManager = MediaSessionManager(this)
         notificationManager = MusicNotificationManager(this, coroutineScope)
         playbackManager = PlaybackManager(this, coroutineScope)
@@ -169,6 +178,19 @@ class MusicService : Service() {
                 override fun seekTo(position: Int) = this@MusicService.seekTo(position)
                 override fun stop() = this@MusicService.stop()
                 override fun getRepeatMode(): Int = shuffleRepeatController.getRepeatMode()
+                override fun onSongCompletedForRepeat() {
+                    android.util.Log.d("MusicService", "🔂 Song completed for repeat - saving stats and starting new tracking session")
+                    
+                    // Save stats for the completed play (100% completion since it naturally ended)
+                    val duration = getDuration().toLong()
+                    individualStatsTracker.onSongCompleted()
+                    
+                    // Start tracking the same song again for the repeat
+                    currentSong?.let { song ->
+                        android.util.Log.d("MusicService", "🔂 Starting new tracking session for repeat: ${song.title}")
+                        individualStatsTracker.startTrackingSong(song, duration)
+                    }
+                }
             }
         )
     }
@@ -300,10 +322,16 @@ class MusicService : Service() {
                     // Always ensure we have a foreground service when there's music activity
                     if (!isForegroundStarted && currentSong != null) {
                         android.util.Log.d("MusicService", "=== STARTING FOREGROUND SERVICE (ONCE) ===")
-                        val basicNotification = notificationManager.createBasicNotification()
-                        startForeground(MusicNotificationManager.NOTIFICATION_ID, basicNotification)
+                        
+                        // Create a proper notification with song info instead of basic notification
+                        val notification = notificationManager.createNotification(
+                            currentSong,
+                            isPlaying,
+                            mediaSessionManager.getSessionToken()
+                        )
+                        startForeground(MusicNotificationManager.NOTIFICATION_ID, notification)
                         isForegroundStarted = true
-                        android.util.Log.d("MusicService", "✅ Foreground service started successfully")
+                        android.util.Log.d("MusicService", "✅ Foreground service started successfully with song: ${currentSong?.title}")
                     }
                     
                                         // Always update notification content for any state change
@@ -322,9 +350,15 @@ class MusicService : Service() {
                     if (isPlaying) {
                         progressUpdateManager.startProgressUpdates()
                         playbackStatsTracker.startTracking()
+                        android.util.Log.d("MusicService", "🔥 About to call individualStatsTracker.resumeTracking()")
+                        individualStatsTracker.resumeTracking()
+                        android.util.Log.d("MusicService", "🔥 Called individualStatsTracker.resumeTracking()")
                     } else {
                         progressUpdateManager.stopProgressUpdates()
                         playbackStatsTracker.stopTracking()
+                        android.util.Log.d("MusicService", "🔥 About to call individualStatsTracker.pauseTracking()")
+                        individualStatsTracker.pauseTracking()
+                        android.util.Log.d("MusicService", "🔥 Called individualStatsTracker.pauseTracking()")
                     }
                     
                 } catch (e: Exception) {
@@ -339,17 +373,36 @@ class MusicService : Service() {
             override fun onSongReady() {
                 android.util.Log.d("MusicService", "PlaybackManager ready, notifying listeners of song change: ${currentSong?.title}")
                 listenerManager.notifySongChanged(currentSong)
+                
+                // Update individual stats tracker with actual song duration
+                val actualDuration = getDuration().toLong()
+                if (actualDuration > 0) {
+                    individualStatsTracker.updateSongDuration(actualDuration)
+                }
+                
+                // Force update notification when song is ready
+                if (isForegroundStarted && currentSong != null) {
+                    android.util.Log.d("MusicService", "Song ready - forcing notification update")
+                    try {
+                        notificationCoordinator.updateAll()
+                    } catch (e: Exception) {
+                        android.util.Log.e("MusicService", "Error updating notification on song ready: ${e.message}", e)
+                    }
+                }
             }
             
             override fun onSongEnded() {
                 android.util.Log.d("MusicService", "PlaybackManager song ended")
+                
+                // Track song completion for individual stats (natural end = 100% completion)
+                individualStatsTracker.onSongCompleted()
                 
                 // Cache the song that just finished playing
                 currentSong?.let { song ->
                     cacheCompletedSong(song)
                 }
                 
-                skipToNext()
+                skipToNext(isNaturalEnd = true)
             }
             
             override fun onPlayerError(error: PlaybackException) {
@@ -479,6 +532,7 @@ class MusicService : Service() {
         super.onDestroy()
         progressUpdateManager.stopProgressUpdates()
         playbackStatsTracker.stopTracking()  // Save any remaining tracking time
+        individualStatsTracker.reset()  // Save any remaining individual stats
         audioFocusManager.abandonAudioFocus()
         playbackManager.release()
         mediaSessionManager.release()
@@ -512,6 +566,11 @@ class MusicService : Service() {
         musicQueue.setPlaylist(songList, position)
         currentSong = song
         
+        // MISSING: Start tracking the song for individual stats!
+        android.util.Log.d("MusicService", "🔥 loadAndPlay - About to call individualStatsTracker.startTrackingSong")
+        individualStatsTracker.startTrackingSong(song, 0L)
+        android.util.Log.d("MusicService", "🔥 loadAndPlay - Called individualStatsTracker.startTrackingSong")
+        
         // Temporarily disable audio focus to prevent conflicts
         // audioFocusManager.requestAudioFocus()
         android.util.Log.d("MusicService", "Proceeding with playback...")
@@ -544,14 +603,51 @@ class MusicService : Service() {
         notificationCoordinator.updatePlaybackState()
     }
     
-    fun skipToNext() {
+    fun skipToNext(isNaturalEnd: Boolean = false) {
+        // Track current position before skipping for stats completion calculation
+        val currentPosition = getCurrentPosition().toLong()
+        val songBeingSkipped = currentSong
+        val timestamp = System.currentTimeMillis()
+        
+        android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - ENTRY - currentSong: ${songBeingSkipped?.title}, isNaturalEnd: $isNaturalEnd")
+        
+        // Only call stopTracking if this is NOT a natural end
+        // Natural ends are already handled by onSongCompleted()
+        if (!isNaturalEnd) {
+            android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - Manual skip - calling stopTracking($currentPosition) for: ${songBeingSkipped?.title}")
+            
+            // Check if tracker still has the song before stopping
+            val trackerSong = individualStatsTracker.getCurrentSong()
+            android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - Tracker currentSong: ${trackerSong?.title}")
+            
+            // CRITICAL: Stop tracking current song BEFORE calling queueNavigator
+            // This prevents the double stopTracking() issue when playNewSong() calls startTrackingSong()
+            individualStatsTracker.stopTracking(currentPosition)
+            android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - Called stopTracking for manual skip")
+        } else {
+            android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - Natural end - skipping stopTracking (already handled by onSongCompleted)")
+        }
+        
+        android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - Calling queueNavigator.skipToNext()")
         val nextSong = queueNavigator.skipToNext()
         if (nextSong != null) {
             currentSong = nextSong
         }
+        android.util.Log.d("MusicService", "🔥 [$timestamp] skipToNext - COMPLETE - new currentSong: ${currentSong?.title}")
     }
     
     fun skipToPrevious() {
+        // Track current position before skipping for stats completion calculation
+        val currentPosition = getCurrentPosition().toLong()
+        val songBeingSkipped = currentSong
+        
+        android.util.Log.d("MusicService", "🔥 skipToPrevious - About to call individualStatsTracker.stopTracking($currentPosition) for: ${songBeingSkipped?.title}")
+        
+        // CRITICAL: Stop tracking current song BEFORE calling queueNavigator
+        // This prevents the double stopTracking() issue when playNewSong() calls startTrackingSong()
+        individualStatsTracker.stopTracking(currentPosition)
+        android.util.Log.d("MusicService", "🔥 skipToPrevious - Successfully saved stats for skipped song: ${songBeingSkipped?.title}")
+        
         val previousSong = queueNavigator.skipToPrevious()
         if (previousSong != null) {
             currentSong = previousSong
@@ -561,6 +657,12 @@ class MusicService : Service() {
     private fun playNewSong(song: Song) {
         android.util.Log.d("MusicService", "=== PLAY NEW SONG ===")
         android.util.Log.d("MusicService", "Song: ${song.title} (${song.id})")
+        
+        // Start tracking this song for individual stats
+        // Duration will be obtained from the actual player when song is ready
+        android.util.Log.d("MusicService", "🔥 About to call individualStatsTracker.startTrackingSong")
+        individualStatsTracker.startTrackingSong(song, 0L)
+        android.util.Log.d("MusicService", "🔥 Called individualStatsTracker.startTrackingSong")
         
         playbackManager.prepareNewSong(song)
     }
@@ -616,6 +718,15 @@ class MusicService : Service() {
      * @return true if jump was successful
      */
     fun jumpToQueuePosition(position: Int): Boolean = queueOperations.jumpToQueuePosition(position)
+    
+    /**
+     * Force save any accumulated streaming stats
+     * This is useful when navigating to Settings to show real-time stats
+     */
+    fun forceSaveStreamingStats() {
+        android.util.Log.d("MusicService", "Force saving streaming stats for immediate UI update")
+        playbackStatsTracker.forceSaveAccumulatedTime()
+    }
     
     private fun notifyQueueChanged() {
         val queue = getCurrentQueue()
